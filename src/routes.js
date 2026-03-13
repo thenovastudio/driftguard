@@ -2,7 +2,6 @@ import { Router } from 'express';
 import { pool } from './db/pool.js';
 import { getSnapshots, getLatestSnapshot, getSnapshotById } from './db/snapshots.js';
 import { detectChanges } from './diff.js';
-import { pollQueue } from './worker.js';
 
 export const router = Router();
 
@@ -57,9 +56,19 @@ router.get('/services/:service/diff', async (req, res) => {
 // Trigger manual poll
 router.post('/services/:service/poll', async (req, res) => {
   try {
+    // Connect to Redis dynamically (only when needed)
+    const { Queue } = await import('bullmq');
+    const IORedis = (await import('ioredis')).default;
+    const connection = new IORedis(process.env.REDIS_URL || 'redis://localhost:6379', {
+      maxRetriesPerRequest: null,
+      lazyConnect: true,
+    });
+    await connection.connect();
+    const pollQueue = new Queue('poll', { connection });
     const job = await pollQueue.add(`manual-${req.params.service}`, {
       service: req.params.service,
     }, { priority: 1 });
+    await connection.quit();
     
     res.json({ message: 'Poll queued', jobId: job.id });
   } catch (err) {
