@@ -41,10 +41,15 @@ cp .env.example .env
 # 3. Set up database
 npm run db:migrate
 
-# 4. Start the worker (polls services)
+# 4. Start the API server (port 3000)
+npm run dev
+
+# 5. Start the worker (polls services)
 npm run worker
 
-# 5. Start the API server
+# 6. Start the web dashboard (port 3001)
+cd web
+npm install
 npm run dev
 ```
 
