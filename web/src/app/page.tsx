@@ -78,6 +78,83 @@ const SERVICE_DESCRIPTIONS: Record<string, string> = {
   slack: "Monitor webhook URLs, channels, and bot settings",
 };
 
+const SERVICE_SETUP_GUIDE: Record<string, { title: string; steps: string[] }> = {
+  stripe: {
+    title: "How to get your Stripe API key",
+    steps: [
+      'Go to <a href="https://dashboard.stripe.com/apikeys" target="_blank" class="text-primary hover:underline">Stripe Dashboard → API Keys</a>',
+      'Under "Standard keys", click "Reveal" next to the <strong>Secret key</strong> (starts with <code class="bg-muted px-1 rounded text-xs">sk_live_</code> or <code class="bg-muted px-1 rounded text-xs">sk_test_</code>)',
+      "Copy the key and paste it below",
+    ],
+  },
+  vercel: {
+    title: "How to get your Vercel API token",
+    steps: [
+      'Go to <a href="https://vercel.com/account/settings/tokens" target="_blank" class="text-primary hover:underline">Vercel → Settings → Tokens</a>',
+      "Click <strong>Create</strong> and give it a name like &ldquo;DriftGuard&rdquo;",
+      "Set scope to your team/account and leave expiration as needed",
+      "Copy the token immediately (it won't be shown again)",
+    ],
+  },
+  sendgrid: {
+    title: "How to get your SendGrid API key",
+    steps: [
+      'Go to <a href="https://app.sendgrid.com/settings/api_keys" target="_blank" class="text-primary hover:underline">SendGrid → Settings → API Keys</a>',
+      "Click <strong>Create API Key</strong>",
+      "Choose <strong>Restricted Access</strong> and enable at least <strong>Mail Send</strong> and <strong>Email Activity</strong> read permissions",
+      "Copy the key (starts with <code class=\"bg-muted px-1 rounded text-xs\">SG.</code>)",
+    ],
+  },
+  github: {
+    title: "How to get your GitHub Personal Access Token",
+    steps: [
+      'Go to <a href="https://github.com/settings/tokens" target="_blank" class="text-primary hover:underline">GitHub → Settings → Developer settings → Personal access tokens</a>',
+      "Click <strong>Generate new token (classic)</strong>",
+      "Give it a note like &ldquo;DriftGuard&rdquo;",
+      "Select scopes: <code class=\"bg-muted px-1 rounded text-xs\">repo</code> (for private repos) or <code class=\"bg-muted px-1 rounded text-xs\">public_repo</code> (public only), plus <code class=\"bg-muted px-1 rounded text-xs\">admin:org</code> for org settings",
+      "Copy the token (starts with <code class=\"bg-muted px-1 rounded text-xs\">ghp_</code>)",
+    ],
+  },
+  cloudflare: {
+    title: "How to get your Cloudflare API token",
+    steps: [
+      'Go to <a href="https://dash.cloudflare.com/profile/api-tokens" target="_blank" class="text-primary hover:underline">Cloudflare → Profile → API Tokens</a>',
+      "Click <strong>Create Token</strong>",
+      "Use the <strong>Edit zone DNS</strong> template or create a custom token with <strong>Zone Settings:Edit</strong> permissions",
+      "Select the zones you want to monitor",
+      "Copy the token after creation",
+    ],
+  },
+  twilio: {
+    title: "How to get your Twilio API credentials",
+    steps: [
+      'Go to <a href="https://console.twilio.com" target="_blank" class="text-primary hover:underline">Twilio Console</a>',
+      "Your <strong>Account SID</strong> and <strong>Auth Token</strong> are on the main dashboard",
+      "Copy the Auth Token (you may need to click to reveal it)",
+      "For a more restricted key, go to <strong>API Keys & Tokens</strong> and create a new Standard API Key",
+    ],
+  },
+  datadog: {
+    title: "How to get your Datadog API key",
+    steps: [
+      'Go to <a href="https://app.datadoghq.com/organization-settings/api-keys" target="_blank" class="text-primary hover:underline">Datadog → Organization Settings → API Keys</a>',
+      "Click <strong>New Key</strong>",
+      "Give it a name like &ldquo;DriftGuard&rdquo;",
+      "Copy the key (32-character hex string)",
+    ],
+  },
+  slack: {
+    title: "How to set up your Slack app",
+    steps: [
+      'Go to <a href="https://api.slack.com/apps" target="_blank" class="text-primary hover:underline">Slack API → Your Apps</a>',
+      "Click <strong>Create New App</strong> → From scratch",
+      "Add the <strong>Incoming Webhooks</strong> feature and activate it",
+      "Click <strong>Add New Webhook to Workspace</strong> and select your channel",
+      "Copy the Webhook URL (starts with <code class=\"bg-muted px-1 rounded text-xs\">https://hooks.slack.com/</code>)",
+    ],
+  },
+};
+
 // ── Service Card ──────────────────────────────────────────────
 function ServiceCard({
   service,
@@ -270,6 +347,28 @@ function SettingsPage({
               {SERVICE_DESCRIPTIONS[service.id]}
             </p>
 
+            {/* Setup guide banner */}
+            {SERVICE_SETUP_GUIDE[service.id] && (
+              <div className="rounded-lg bg-muted/50 border border-border p-4 mb-4">
+                <p className="text-sm font-medium mb-2">
+                  {SERVICE_SETUP_GUIDE[service.id].title}
+                </p>
+                <ol className="space-y-1.5">
+                  {SERVICE_SETUP_GUIDE[service.id].steps.map((step, i) => (
+                    <li
+                      key={i}
+                      className="text-xs text-muted-foreground flex gap-2"
+                    >
+                      <span className="text-primary font-medium shrink-0">
+                        {i + 1}.
+                      </span>
+                      <span dangerouslySetInnerHTML={{ __html: step }} />
+                    </li>
+                  ))}
+                </ol>
+              </div>
+            )}
+
             <div className="flex items-center gap-3">
               <div className="relative flex-1">
                 <Key className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -339,6 +438,10 @@ export default function Dashboard() {
   const [changes, setChanges] = useState<Change[]>([]);
   const [loading, setLoading] = useState(true);
   const [filterService, setFilterService] = useState<string | null>(null);
+  const [pollResult, setPollResult] = useState<{
+    service: string;
+    count: number;
+  } | null>(null);
 
   const fetchServices = useCallback(() => {
     fetch("/api/services")
@@ -375,8 +478,17 @@ export default function Dashboard() {
     setPollingStates((prev) => ({ ...prev, [serviceId]: "polling" }));
 
     try {
-      await fetch(`/api/services/${serviceId}/poll`, { method: "POST" });
+      const res = await fetch(`/api/services/${serviceId}/poll`, {
+        method: "POST",
+      });
+      const data = await res.json();
       setPollingStates((prev) => ({ ...prev, [serviceId]: "connected" }));
+      setPollResult({
+        service: serviceId,
+        count: data.changesGenerated || 0,
+      });
+      // Auto-clear after 4s
+      setTimeout(() => setPollResult(null), 4000);
       fetchServices();
       fetchChanges();
     } catch {
@@ -451,6 +563,31 @@ export default function Dashboard() {
           <SettingsPage services={services} onSave={handleSaveApiKey} />
         ) : (
           <>
+            {/* Poll result toast */}
+            {pollResult && (
+              <div
+                className={cn(
+                  "mb-6 rounded-lg border px-4 py-3 text-sm flex items-center gap-2",
+                  pollResult.count > 0
+                    ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-400"
+                    : "border-border bg-muted/50 text-muted-foreground"
+                )}
+              >
+                {pollResult.count > 0 ? (
+                  <CheckCircle2 className="h-4 w-4 shrink-0" />
+                ) : (
+                  <AlertTriangle className="h-4 w-4 shrink-0" />
+                )}
+                <span>
+                  <strong className="capitalize">{pollResult.service}</strong>{" "}
+                  polled —{" "}
+                  {pollResult.count > 0
+                    ? `${pollResult.count} change${pollResult.count > 1 ? "s" : ""} detected`
+                    : "no changes detected this time (try again or change config on the provider side)"}
+                </span>
+              </div>
+            )}
+
             {/* Header */}
             <div className="mb-8">
               <h1 className="text-2xl font-bold mb-2">Dashboard</h1>
