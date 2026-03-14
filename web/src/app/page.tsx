@@ -458,27 +458,46 @@ export default function Dashboard() {
               </p>
             </div>
 
-            {/* Service Cards */}
-            <ul className="grid grid-cols-1 gap-4 md:grid-cols-3 lg:gap-6 mb-12">
-              {services.map((service) => (
-                <ServiceCard
-                  key={service.id}
-                  service={service}
-                  status={pollingStates[service.id] || "idle"}
-                  onPoll={handlePoll}
-                  onViewChanges={handleViewChanges}
-                />
-              ))}
-            </ul>
+            {/* Service Cards — only show linked services */}
+            {connectedCount === 0 ? (
+              <div className="rounded-xl border border-border bg-card p-12 text-center mb-12">
+                <Shield className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
+                <h3 className="text-lg font-semibold mb-2">No services linked yet</h3>
+                <p className="text-muted-foreground mb-6 max-w-md mx-auto">
+                  Link your SaaS accounts in Settings to start monitoring their configuration for unexpected changes.
+                </p>
+                <button
+                  onClick={() => setActiveTab(3)}
+                  className="inline-flex items-center gap-2 rounded-lg bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
+                >
+                  <Settings className="h-4 w-4" />
+                  Go to Settings
+                </button>
+              </div>
+            ) : (
+              <ul className="grid grid-cols-1 gap-4 md:grid-cols-3 lg:gap-6 mb-12">
+                {services
+                  .filter((s) => s.connected)
+                  .map((service) => (
+                    <ServiceCard
+                      key={service.id}
+                      service={service}
+                      status={pollingStates[service.id] || "idle"}
+                      onPoll={handlePoll}
+                      onViewChanges={handleViewChanges}
+                    />
+                  ))}
+              </ul>
+            )}
 
             {/* Stats */}
             <div className="grid grid-cols-3 gap-4 mb-8">
               <div className="rounded-xl border border-border bg-card p-4">
                 <div className="flex items-center gap-2 text-muted-foreground mb-1">
                   <Activity className="h-4 w-4" />
-                  <span className="text-xs">Services</span>
+                  <span className="text-xs">Linked</span>
                 </div>
-                <span className="text-2xl font-bold">{services.length}</span>
+                <span className="text-2xl font-bold">{connectedCount}</span>
               </div>
               <div className="rounded-xl border border-border bg-card p-4">
                 <div className="flex items-center gap-2 text-muted-foreground mb-1">
@@ -490,10 +509,12 @@ export default function Dashboard() {
               <div className="rounded-xl border border-border bg-card p-4">
                 <div className="flex items-center gap-2 text-muted-foreground mb-1">
                   <CheckCircle2 className="h-4 w-4" />
-                  <span className="text-xs">Linked</span>
+                  <span className="text-xs">Healthy</span>
                 </div>
                 <span className="text-2xl font-bold text-emerald-400">
-                  {connectedCount}/{services.length}
+                  {connectedCount > 0
+                    ? `${acknowledgedCount}/${changes.length}`
+                    : "—"}
                 </span>
               </div>
             </div>
