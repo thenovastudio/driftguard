@@ -46,6 +46,51 @@ export const services: Service[] = [
     api_key: "",
     connected: false,
   },
+  {
+    id: "github",
+    name: "GitHub",
+    enabled: true,
+    last_polled_at: null,
+    created_at: new Date().toISOString(),
+    api_key: "",
+    connected: false,
+  },
+  {
+    id: "cloudflare",
+    name: "Cloudflare",
+    enabled: true,
+    last_polled_at: null,
+    created_at: new Date().toISOString(),
+    api_key: "",
+    connected: false,
+  },
+  {
+    id: "twilio",
+    name: "Twilio",
+    enabled: true,
+    last_polled_at: null,
+    created_at: new Date().toISOString(),
+    api_key: "",
+    connected: false,
+  },
+  {
+    id: "datadog",
+    name: "Datadog",
+    enabled: true,
+    last_polled_at: null,
+    created_at: new Date().toISOString(),
+    api_key: "",
+    connected: false,
+  },
+  {
+    id: "slack",
+    name: "Slack",
+    enabled: true,
+    last_polled_at: null,
+    created_at: new Date().toISOString(),
+    api_key: "",
+    connected: false,
+  },
 ];
 
 export const changes: Change[] = [];
@@ -60,6 +105,11 @@ const configBaselines: Record<string, Record<string, unknown>> = {
   stripe: { webhook_url: "https://app.example.com/stripe", currency: "usd", statement_descriptor: "DRIFTGUARD" },
   vercel: { framework: "nextjs", region: "iad1", build_command: "next build" },
   sendgrid: { sender: "noreply@example.com", template_id: "d-abc123", click_tracking: true },
+  github: { branch_protection: true, required_reviews: 2, dismiss_stale: true },
+  cloudflare: { ssl_mode: "strict", min_tls: "1.2", cache_level: "aggressive" },
+  twilio: { webhook_url: "https://app.example.com/twilio", status_callback: true, recording: false },
+  datadog: { retention_days: 30, alert_channels: ["slack", "email"], sampling_rate: 100 },
+  slack: { webhook_url: "https://hooks.slack.com/services/T00/B00/xxx", channel: "#alerts", username: "DriftGuard" },
 };
 
 const pollableFields: Record<string, Array<{ key: string; values: unknown[] }>> = {
@@ -77,6 +127,31 @@ const pollableFields: Record<string, Array<{ key: string; values: unknown[] }>> 
     { key: "sender", values: ["noreply@example.com", "hello@example.com", "support@example.com"] },
     { key: "template_id", values: ["d-abc123", "d-xyz789", "d-qrs456"] },
     { key: "click_tracking", values: [true, false] },
+  ],
+  github: [
+    { key: "branch_protection", values: [true, false] },
+    { key: "required_reviews", values: [1, 2, 3] },
+    { key: "dismiss_stale", values: [true, false] },
+  ],
+  cloudflare: [
+    { key: "ssl_mode", values: ["strict", "flexible", "full"] },
+    { key: "min_tls", values: ["1.0", "1.2", "1.3"] },
+    { key: "cache_level", values: ["aggressive", "standard", "bypass"] },
+  ],
+  twilio: [
+    { key: "webhook_url", values: ["https://app.example.com/twilio", "https://new.example.com/twilio"] },
+    { key: "status_callback", values: [true, false] },
+    { key: "recording", values: [true, false] },
+  ],
+  datadog: [
+    { key: "retention_days", values: [7, 15, 30, 90] },
+    { key: "alert_channels", values: [["slack", "email"], ["slack"], ["email", "pagerduty"]] },
+    { key: "sampling_rate", values: [50, 100, 200] },
+  ],
+  slack: [
+    { key: "webhook_url", values: ["https://hooks.slack.com/services/T00/B00/xxx", "https://hooks.slack.com/services/T00/B00/yyy"] },
+    { key: "channel", values: ["#alerts", "#monitoring", "#ops"] },
+    { key: "username", values: ["DriftGuard", "DriftBot", "ConfigBot"] },
   ],
 };
 

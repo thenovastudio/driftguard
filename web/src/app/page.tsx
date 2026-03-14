@@ -19,10 +19,16 @@ import {
   Trash2,
   Eye,
   EyeOff,
+  GitBranch,
+  Cloud,
+  Phone,
+  BarChart3,
+  Hash,
 } from "lucide-react";
 import { GlowingEffect } from "@/components/ui/glowing-effect";
 import { InteractiveHoverButton } from "@/components/ui/interactive-hover-button";
 import { ExpandableTabs } from "@/components/ui/expandable-tabs";
+import { ThemeToggle } from "@/components/ui/theme-toggle";
 
 interface Service {
   id: string;
@@ -45,12 +51,33 @@ const SERVICE_ICONS: Record<string, React.ReactNode> = {
   stripe: <CreditCard className="h-4 w-4" />,
   vercel: <Globe className="h-4 w-4" />,
   sendgrid: <Mail className="h-4 w-4" />,
+  github: <GitBranch className="h-4 w-4" />,
+  cloudflare: <Cloud className="h-4 w-4" />,
+  twilio: <Phone className="h-4 w-4" />,
+  datadog: <BarChart3 className="h-4 w-4" />,
+  slack: <Hash className="h-4 w-4" />,
 };
 
 const SERVICE_DOCS: Record<string, string> = {
   stripe: "https://dashboard.stripe.com/apikeys",
   vercel: "https://vercel.com/account/settings/tokens",
   sendgrid: "https://app.sendgrid.com/settings/api_keys",
+  github: "https://github.com/settings/tokens",
+  cloudflare: "https://dash.cloudflare.com/profile/api-tokens",
+  twilio: "https://console.twilio.com/account/voice/settings",
+  datadog: "https://app.datadoghq.com/organization-settings/api-keys",
+  slack: "https://api.slack.com/apps",
+};
+
+const SERVICE_DESCRIPTIONS: Record<string, string> = {
+  stripe: "Monitor payment config, webhooks, and billing settings",
+  vercel: "Monitor deployment settings, regions, and build config",
+  sendgrid: "Monitor email templates, sender config, and tracking",
+  github: "Monitor branch protection, review settings, and access",
+  cloudflare: "Monitor SSL/TLS, cache rules, and DNS config",
+  twilio: "Monitor voice/SMS webhooks and recording settings",
+  datadog: "Monitor retention, alert channels, and sampling rates",
+  slack: "Monitor webhook URLs, channels, and bot settings",
 };
 
 // ── Service Card ──────────────────────────────────────────────
@@ -188,11 +215,17 @@ function SettingsPage({
 
   return (
     <div>
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold mb-2">Settings</h1>
-        <p className="text-muted-foreground">
-          Connect your SaaS accounts to start monitoring configuration changes
-        </p>
+      <div className="flex items-center justify-between mb-8">
+        <div>
+          <h1 className="text-2xl font-bold mb-2">Settings</h1>
+          <p className="text-muted-foreground">
+            Connect your SaaS accounts to start monitoring configuration changes
+          </p>
+        </div>
+        <div className="flex items-center gap-3">
+          <span className="text-sm text-muted-foreground">Theme</span>
+          <ThemeToggle />
+        </div>
       </div>
 
       <div className="space-y-6">
@@ -229,11 +262,15 @@ function SettingsPage({
                 href={SERVICE_DOCS[service.id]}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                className="flex items-center gap-1 text-xs text-primary hover:underline"
               >
                 Get API key <ExternalLink className="h-3 w-3" />
               </a>
             </div>
+
+            <p className="text-sm text-muted-foreground mb-4">
+              {SERVICE_DESCRIPTIONS[service.id]}
+            </p>
 
             <div className="flex items-center gap-3">
               <div className="relative flex-1">
@@ -242,12 +279,16 @@ function SettingsPage({
                   type={visible[service.id] ? "text" : "password"}
                   value={keys[service.id] || ""}
                   onChange={(e) =>
-                    setKeys((prev) => ({ ...prev, [service.id]: e.target.value }))
+                    setKeys((prev) => ({
+                      ...prev,
+                      [service.id]: e.target.value,
+                    }))
                   }
                   placeholder={`Enter ${service.name} API key`}
                   className="w-full rounded-lg border border-border bg-background pl-10 pr-10 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all"
                 />
                 <button
+                  type="button"
                   onClick={() =>
                     setVisible((prev) => ({
                       ...prev,
@@ -264,13 +305,15 @@ function SettingsPage({
                 </button>
               </div>
               <button
+                type="button"
                 onClick={() => handleSave(service.id)}
-                className="rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
+                className="rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors whitespace-nowrap"
               >
                 {saved[service.id] ? "Saved!" : "Save"}
               </button>
               {keys[service.id] && (
                 <button
+                  type="button"
                   onClick={() => {
                     setKeys((prev) => ({ ...prev, [service.id]: "" }));
                     onSave(service.id, "");
@@ -390,11 +433,12 @@ export default function Dashboard() {
             tabs={tabs}
             className="border-border"
             onChange={(index) => {
-              setActiveTab(index);
-              if (index !== null && tabs[index].type !== "separator") {
-                const title = (tabs[index] as { title: string }).title;
-                if (title === "Dashboard") setActiveTab(0);
-              }
+              if (index === null) return;
+              const tab = tabs[index];
+              if (tab.type === "separator") return;
+              const title = (tab as { title: string }).title;
+              if (title === "Settings") setActiveTab(3);
+              else if (title === "Dashboard" || title === "Alerts" || title === "Help") setActiveTab(0);
             }}
           />
         </div>
