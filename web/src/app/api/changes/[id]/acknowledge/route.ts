@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthUser } from "@/lib/auth";
-import getDb from "@/lib/db";
+import { run, queryOne } from "@/lib/db";
 
 export async function POST(
   _req: NextRequest,
@@ -12,15 +12,11 @@ export async function POST(
   }
 
   const { id } = await params;
-  const db = getDb();
 
-  const result = db
-    .prepare("UPDATE changes SET acknowledged = 1 WHERE id = ? AND user_id = ?")
-    .run(id, auth.userId);
-
-  if (result.changes === 0) {
-    return NextResponse.json({ error: "Change not found" }, { status: 404 });
-  }
+  await run(
+    "UPDATE changes SET acknowledged = 1 WHERE id = ? AND user_id = ?",
+    [parseInt(id), auth.userId]
+  );
 
   return NextResponse.json({ message: "Acknowledged" });
 }

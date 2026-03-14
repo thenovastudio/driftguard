@@ -1,5 +1,4 @@
-// Polling simulation with SQLite persistence
-import getDb from "@/lib/db";
+import { queryAll, queryOne, run, lastInsertRowId } from "@/lib/db";
 
 // Polling simulation — generates realistic config diffs
 const configBaselines: Record<string, Record<string, unknown>> = {
@@ -56,17 +55,15 @@ const pollableFields: Record<string, Array<{ key: string; values: unknown[] }>> 
   ],
 };
 
-export function simulatePoll(userId: number, serviceId: string): {
+export async function simulatePoll(userId: number, serviceId: string): Promise<{
   service: string;
   changesGenerated: number;
-} {
-  const db = getDb();
+}> {
+  await run(
+    "UPDATE services SET last_polled_at = datetime('now') WHERE id = ? AND user_id = ?",
+    [serviceId, userId]
+  );
 
-  // Update last_polled_at
-  db.prepare("UPDATE services SET last_polled_at = datetime('now') WHERE id = ? AND user_id = ?")
-    .run(serviceId, userId);
-
-  // ~40% chance of generating a change
   if (Math.random() > 0.4) {
     return { service: serviceId, changesGenerated: 0 };
   }
@@ -79,47 +76,48 @@ export function simulatePoll(userId: number, serviceId: string): {
   const newValue = field.values[Math.floor(Math.random() * field.values.length)];
   const oldValue = baseline[field.key];
 
-  if (newValue === oldValue) return { service: serviceId, changesGenerated: 0 };
+  if (JSON.stringify(newValue) === JSON.stringify(oldValue)) {
+    return { service: serviceId, changesGenerated: 0 };
+  }
 
   const diff = { [field.key]: { old: oldValue, new: newValue } };
 
-  db.prepare(
-    "INSERT INTO changes (user_id, service_id, diff) VALUES (?, ?, ?)"
-  ).run(userId, serviceId, JSON.stringify(diff));
+  await run(
+    "INSERT INTO changes (user_id, service_id, diff) VALUES (?, ?, ?)",
+    [userId, serviceId, JSON.stringify(diff)]
+  );
 
   return { service: serviceId, changesGenerated: 1 };
 }
 
-export function getServicesForUser(userId: number) {
-  const db = getDb();
-  return db
-    .prepare("SELECT * FROM services WHERE user_id = ? ORDER BY created_at")
-    .all(userId);
+export async function getServicesForUser(userId: number) {
+  return queryAll(
+    "SELECT * FROM services WHERE user_id = ? ORDER BY created_at",
+    [userId]
+  );
 }
 
-export function getChangesForUser(userId: number, limit = 20, serviceId?: string) {
-  const db = getDb();
+export async function getChangesForUser(userId: number, limit = 20, serviceId?: string) {
   if (serviceId) {
-    return db
-      .prepare(
-        "SELECT * FROM changes WHERE user_id = ? AND service_id = ? ORDER BY created_at DESC LIMIT ?"
-      )
-      .all(userId, serviceId, limit);
+    return queryAll(
+      "SELECT * FROM changes WHERE user_id = ? AND service_id = ? ORDER BY created_at DESC LIMIT ?",
+      [userId, serviceId, limit]
+    );
   }
-  return db
-    .prepare(
-      "SELECT * FROM changes WHERE user_id = ? ORDER BY created_at DESC LIMIT ?"
-    )
-    .all(userId, limit);
+  return queryAll(
+    "SELECT * FROM changes WHERE user_id = ? ORDER BY created_at DESC LIMIT ?",
+    [userId, limit]
+  );
 }
 
-export function updateServiceApiKey(userId: number, serviceId: string, apiKey: string) {
-  const db = getDb();
+export async function updateServiceApiKey(userId: number, serviceId: string, apiKey: string) {
   const connected = apiKey.length > 0 ? 1 : 0;
-  db.prepare(
-    "UPDATE services SET api_key = ?, connected = ? WHERE id = ? AND user_id = ?"
-  ).run(apiKey, connected, serviceId, userId);
-  return db
-    .prepare("SELECT * FROM services WHERE id = ? AND user_id = ?")
-    .get(serviceId, userId);
+  await run(
+    "UPDATE services SET api_key = ?, connected = ? WHERE id = ? AND user_id = ?",
+    [apiKey, connected, serviceId, userId]
+  );
+  return queryOne(
+    "SELECT * FROM services WHERE id = ? AND user_id = ?",
+    [serviceId, userId]
+  );
 }

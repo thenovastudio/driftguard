@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import getDb from "@/lib/db";
+import { run, queryOne, lastInsertRowId } from "@/lib/db";
 import { hashPassword, signToken, setAuthCookie } from "@/lib/auth";
 
 export async function POST(req: NextRequest) {
@@ -20,12 +20,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const db = getDb();
-
-    // Check if user exists
-    const existing = db
-      .prepare("SELECT id FROM users WHERE email = ?")
-      .get(email);
+    const existing = await queryOne("SELECT id FROM users WHERE email = ?", [email]);
     if (existing) {
       return NextResponse.json(
         { error: "Email already registered" },
@@ -33,20 +28,17 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Create user with 14-day trial
     const passwordHash = await hashPassword(password);
     const trialEnds = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString();
 
-    const result = db
-      .prepare(
-        `INSERT INTO users (email, password_hash, name, plan, trial_ends_at)
-         VALUES (?, ?, ?, 'trial', ?)`
-      )
-      .run(email, passwordHash, name, trialEnds);
+    await run(
+      `INSERT INTO users (email, password_hash, name, plan, trial_ends_at)
+       VALUES (?, ?, ?, 'trial', ?)`,
+      [email, passwordHash, name, trialEnds]
+    );
 
-    const userId = result.lastInsertRowid as number;
+    const userId = await lastInsertRowId();
 
-    // Create default services for the user
     const defaultServices = [
       { id: "stripe", name: "Stripe" },
       { id: "vercel", name: "Vercel" },
@@ -58,15 +50,13 @@ export async function POST(req: NextRequest) {
       { id: "slack", name: "Slack" },
     ];
 
-    const insertService = db.prepare(
-      "INSERT INTO services (id, user_id, name) VALUES (?, ?, ?)"
-    );
-
     for (const svc of defaultServices) {
-      insertService.run(svc.id, userId, svc.name);
+      await run(
+        "INSERT INTO services (id, user_id, name) VALUES (?, ?, ?)",
+        [svc.id, userId, svc.name]
+      );
     }
 
-    // Sign token and set cookie
     const token = signToken({ userId, email, plan: "trial" });
     await setAuthCookie(token);
 

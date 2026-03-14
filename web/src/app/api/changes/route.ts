@@ -12,5 +12,6 @@ export async function GET(req: NextRequest) {
   const limit = parseInt(searchParams.get("limit") || "20");
   const serviceId = searchParams.get("service") || undefined;
 
-  return NextResponse.json(getChangesForUser(auth.userId, limit, serviceId));
+  const changes = await getChangesForUser(auth.userId, limit, serviceId);
+  return NextResponse.json(changes);
 }

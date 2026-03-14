@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import getDb from "@/lib/db";
+import { queryOne } from "@/lib/db";
 import { verifyPassword, signToken, setAuthCookie } from "@/lib/auth";
 
 export async function POST(req: NextRequest) {
@@ -13,10 +13,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const db = getDb();
-    const user = db
-      .prepare("SELECT * FROM users WHERE email = ?")
-      .get(email) as Record<string, unknown> | undefined;
+    const user = await queryOne("SELECT * FROM users WHERE email = ?", [email]);
 
     if (!user) {
       return NextResponse.json(
@@ -25,10 +22,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const valid = await verifyPassword(
-      password,
-      user.password_hash as string
-    );
+    const valid = await verifyPassword(password, user.password_hash as string);
     if (!valid) {
       return NextResponse.json(
         { error: "Invalid email or password" },

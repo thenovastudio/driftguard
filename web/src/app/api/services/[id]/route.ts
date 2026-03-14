@@ -15,7 +15,7 @@ export async function PATCH(
   const body = await req.json();
 
   if (body.api_key !== undefined) {
-    const updated = updateServiceApiKey(auth.userId, id, body.api_key);
+    const updated = await updateServiceApiKey(auth.userId, id, body.api_key);
     return NextResponse.json(updated);
   }
 

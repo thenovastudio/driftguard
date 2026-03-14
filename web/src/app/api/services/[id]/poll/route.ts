@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getAuthUser } from "@/lib/auth";
 import { simulatePoll } from "@/lib/polling";
 import { getUserPlan } from "@/lib/plans";
-import getDb from "@/lib/db";
+import { queryOne } from "@/lib/db";
 
 export async function POST(
   _req: NextRequest,
@@ -15,11 +15,10 @@ export async function POST(
 
   const { id } = await params;
 
-  // Check if service belongs to user
-  const db = getDb();
-  const service = db
-    .prepare("SELECT * FROM services WHERE id = ? AND user_id = ?")
-    .get(id, auth.userId) as Record<string, unknown> | undefined;
+  const service = await queryOne(
+    "SELECT * FROM services WHERE id = ? AND user_id = ?",
+    [id, auth.userId]
+  );
 
   if (!service) {
     return NextResponse.json({ error: "Service not found" }, { status: 404 });
@@ -32,12 +31,8 @@ export async function POST(
     );
   }
 
-  // Check poll interval (don't allow too-frequent polling)
-  const user = db
-    .prepare("SELECT plan, trial_ends_at FROM users WHERE id = ?")
-    .get(auth.userId) as Record<string, unknown>;
-
-  const plan = getUserPlan(user.plan as string, user.trial_ends_at as string | null);
+  const user = await queryOne("SELECT plan, trial_ends_at FROM users WHERE id = ?", [auth.userId]);
+  const plan = getUserPlan(user?.plan as string, (user?.trial_ends_at as string) || null);
 
   if (service.last_polled_at) {
     const lastPoll = new Date(service.last_polled_at as string);
@@ -55,7 +50,7 @@ export async function POST(
     }
   }
 
-  const result = simulatePoll(auth.userId, id);
+  const result = await simulatePoll(auth.userId, id);
   return NextResponse.json({
     message: "Poll completed",
     ...result,

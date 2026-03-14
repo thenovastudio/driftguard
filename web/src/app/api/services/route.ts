@@ -7,5 +7,6 @@ export async function GET() {
   if (!auth) {
     return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   }
-  return NextResponse.json(getServicesForUser(auth.userId));
+  const services = await getServicesForUser(auth.userId);
+  return NextResponse.json(services);
 }

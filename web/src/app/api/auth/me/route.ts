@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getAuthUser } from "@/lib/auth";
-import getDb from "@/lib/db";
+import { queryOne } from "@/lib/db";
 import { getUserPlan } from "@/lib/plans";
 
 export async function GET() {
@@ -9,10 +9,10 @@ export async function GET() {
     return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   }
 
-  const db = getDb();
-  const user = db
-    .prepare("SELECT id, email, name, plan, trial_ends_at, created_at FROM users WHERE id = ?")
-    .get(auth.userId) as Record<string, unknown> | undefined;
+  const user = await queryOne(
+    "SELECT id, email, name, plan, trial_ends_at, created_at FROM users WHERE id = ?",
+    [auth.userId]
+  );
 
   if (!user) {
     return NextResponse.json({ error: "User not found" }, { status: 404 });
