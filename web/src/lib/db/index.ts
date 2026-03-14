@@ -30,7 +30,7 @@ function migrate(db: Database.Database) {
     );
 
     CREATE TABLE IF NOT EXISTS services (
-      id TEXT PRIMARY KEY,
+      id TEXT NOT NULL,
       user_id INTEGER NOT NULL,
       name TEXT NOT NULL,
       api_key TEXT DEFAULT '',
@@ -38,6 +38,7 @@ function migrate(db: Database.Database) {
       enabled INTEGER NOT NULL DEFAULT 1,
       last_polled_at TEXT,
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      PRIMARY KEY (id, user_id),
       FOREIGN KEY (user_id) REFERENCES users(id)
     );
 
@@ -49,7 +50,7 @@ function migrate(db: Database.Database) {
       hash TEXT NOT NULL,
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
       FOREIGN KEY (user_id) REFERENCES users(id),
-      FOREIGN KEY (service_id) REFERENCES services(id)
+      FOREIGN KEY (service_id, user_id) REFERENCES services(id, user_id)
     );
 
     CREATE TABLE IF NOT EXISTS changes (
@@ -60,7 +61,7 @@ function migrate(db: Database.Database) {
       acknowledged INTEGER NOT NULL DEFAULT 0,
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
       FOREIGN KEY (user_id) REFERENCES users(id),
-      FOREIGN KEY (service_id) REFERENCES services(id)
+      FOREIGN KEY (service_id, user_id) REFERENCES services(id, user_id)
     );
 
     CREATE INDEX IF NOT EXISTS idx_services_user ON services(user_id);
