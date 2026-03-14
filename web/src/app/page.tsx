@@ -30,6 +30,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { GlowingEffect } from "@/components/ui/glowing-effect";
+import { GetStartedButton } from "@/components/ui/get-started-button";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 
 // ── Data ─────────────────────────────────────────────────────
@@ -192,10 +193,10 @@ function Nav() {
           </a>
           <ThemeToggle />
           <a
-            href="/dashboard"
+            href="/register"
             className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
           >
-            Open Dashboard <ArrowRight className="h-4 w-4" />
+            Sign In <ArrowRight className="h-4 w-4" />
           </a>
         </div>
 
@@ -215,7 +216,7 @@ function Nav() {
           <a href="#how-it-works" className="block text-sm text-muted-foreground">How it works</a>
           <a href="#integrations" className="block text-sm text-muted-foreground">Integrations</a>
           <a href="#pricing" className="block text-sm text-muted-foreground">Pricing</a>
-          <a href="/dashboard" className="block text-sm text-primary font-medium">Open Dashboard →</a>
+          <a href="/login" className="block text-sm text-primary font-medium">Sign In →</a>
         </div>
       )}
     </nav>
@@ -246,12 +247,7 @@ function HeroSection() {
         </p>
 
         <div className="flex items-center justify-center gap-4 flex-wrap">
-          <a
-            href="/dashboard"
-            className="inline-flex items-center gap-2 rounded-lg bg-primary px-6 py-3 text-base font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
-          >
-            Start monitoring free <ArrowRight className="h-4 w-4" />
-          </a>
+          <GetStartedButton href="/register" />
           <a
             href="#how-it-works"
             className="inline-flex items-center gap-2 rounded-lg border border-border px-6 py-3 text-base font-medium hover:bg-muted transition-colors"
@@ -485,10 +481,10 @@ function PricingSection() {
               ))}
             </ul>
             <a
-              href="/dashboard"
+              href="/register"
               className="block text-center rounded-lg border border-border px-4 py-2.5 text-sm font-medium hover:bg-muted transition-colors"
             >
-              Get started free
+              Start Free Trial
             </a>
           </div>
 
@@ -521,7 +517,7 @@ function PricingSection() {
               ))}
             </ul>
             <a
-              href="/dashboard"
+              href="/register"
               className="block text-center rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
             >
               Start 14-day trial
@@ -555,7 +551,7 @@ function PricingSection() {
               ))}
             </ul>
             <a
-              href="/dashboard"
+              href="/register"
               className="block text-center rounded-lg border border-border px-4 py-2.5 text-sm font-medium hover:bg-muted transition-colors"
             >
               Contact sales
@@ -583,10 +579,10 @@ function FinalCTASection() {
               a minute.
             </p>
             <a
-              href="/dashboard"
+              href="/register"
               className="inline-flex items-center gap-2 rounded-lg bg-primary px-6 py-3 text-base font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
             >
-              Open Dashboard <ArrowRight className="h-4 w-4" />
+              Sign In <ArrowRight className="h-4 w-4" />
             </a>
           </div>
         </div>
@@ -615,7 +611,7 @@ function Footer() {
               <li><a href="#features" className="hover:text-foreground transition-colors">Features</a></li>
               <li><a href="#integrations" className="hover:text-foreground transition-colors">Integrations</a></li>
               <li><a href="#pricing" className="hover:text-foreground transition-colors">Pricing</a></li>
-              <li><a href="/dashboard" className="hover:text-foreground transition-colors">Dashboard</a></li>
+              <li><a href="/login" className="hover:text-foreground transition-colors">Dashboard</a></li>
             </ul>
           </div>
           <div>
