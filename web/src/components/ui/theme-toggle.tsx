@@ -12,16 +12,11 @@ export function ThemeToggle({ className }: ThemeToggleProps) {
   const [isDark, setIsDark] = useState(true)
   const [mounted, setMounted] = useState(false)
 
-  // Read initial theme from localStorage / document
   useEffect(() => {
     setMounted(true)
-    const stored = localStorage.getItem("theme")
-    if (stored) {
-      setIsDark(stored === "dark")
-    } else {
-      // Default dark
-      setIsDark(true)
-    }
+    // Read the actual DOM state (set by layout script)
+    const hasDark = document.documentElement.classList.contains("dark")
+    setIsDark(hasDark)
   }, [])
 
   useEffect(() => {
@@ -37,17 +32,14 @@ export function ThemeToggle({ className }: ThemeToggleProps) {
   }, [isDark, mounted])
 
   if (!mounted) {
-    // SSR placeholder — same size to avoid layout shift
-    return <div className={cn("w-16 h-8 rounded-full bg-zinc-950", className)} />
+    return <div className={cn("w-16 h-8 rounded-full bg-muted", className)} />
   }
 
   return (
     <div
       className={cn(
         "flex w-16 h-8 p-1 rounded-full cursor-pointer transition-all duration-300",
-        isDark
-          ? "bg-zinc-950 border border-zinc-800"
-          : "bg-white border border-zinc-200",
+        "bg-muted border border-border",
         className
       )}
       onClick={() => setIsDark(!isDark)}
@@ -63,42 +55,30 @@ export function ThemeToggle({ className }: ThemeToggleProps) {
       <div className="flex justify-between items-center w-full">
         <div
           className={cn(
-            "flex justify-center items-center w-6 h-6 rounded-full transition-transform duration-300",
+            "flex justify-center items-center w-6 h-6 rounded-full transition-all duration-300",
             isDark
-              ? "transform translate-x-0 bg-zinc-800"
-              : "transform translate-x-8 bg-gray-200"
+              ? "translate-x-0 bg-primary"
+              : "translate-x-8 bg-accent"
           )}
         >
           {isDark ? (
-            <Moon
-              className="w-4 h-4 text-white"
-              strokeWidth={1.5}
-            />
+            <Moon className="w-4 h-4 text-primary-foreground" strokeWidth={1.5} />
           ) : (
-            <Sun
-              className="w-4 h-4 text-gray-700"
-              strokeWidth={1.5}
-            />
+            <Sun className="w-4 h-4 text-accent-foreground" strokeWidth={1.5} />
           )}
         </div>
         <div
           className={cn(
-            "flex justify-center items-center w-6 h-6 rounded-full transition-transform duration-300",
+            "flex justify-center items-center w-6 h-6 rounded-full transition-all duration-300",
             isDark
               ? "bg-transparent"
-              : "transform -translate-x-8"
+              : "-translate-x-8"
           )}
         >
           {isDark ? (
-            <Sun
-              className="w-4 h-4 text-gray-500"
-              strokeWidth={1.5}
-            />
+            <Sun className="w-4 h-4 text-muted-foreground" strokeWidth={1.5} />
           ) : (
-            <Moon
-              className="w-4 h-4 text-black"
-              strokeWidth={1.5}
-            />
+            <Moon className="w-4 h-4 text-foreground" strokeWidth={1.5} />
           )}
         </div>
       </div>
