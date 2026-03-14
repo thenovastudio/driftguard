@@ -14,6 +14,11 @@ import {
   Bell,
   Settings,
   HelpCircle,
+  Key,
+  ExternalLink,
+  Trash2,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 import { GlowingEffect } from "@/components/ui/glowing-effect";
 import { InteractiveHoverButton } from "@/components/ui/interactive-hover-button";
@@ -24,6 +29,8 @@ interface Service {
   name: string;
   enabled: boolean;
   last_polled_at: string | null;
+  api_key?: string;
+  connected: boolean;
 }
 
 interface Change {
@@ -40,14 +47,23 @@ const SERVICE_ICONS: Record<string, React.ReactNode> = {
   sendgrid: <Mail className="h-4 w-4" />,
 };
 
+const SERVICE_DOCS: Record<string, string> = {
+  stripe: "https://dashboard.stripe.com/apikeys",
+  vercel: "https://vercel.com/account/settings/tokens",
+  sendgrid: "https://app.sendgrid.com/settings/api_keys",
+};
+
+// ── Service Card ──────────────────────────────────────────────
 function ServiceCard({
   service,
   status,
   onPoll,
+  onViewChanges,
 }: {
   service: Service;
   status: "idle" | "polling" | "connected";
   onPoll: (id: string) => void;
+  onViewChanges: (id: string) => void;
 }) {
   return (
     <li className="min-h-[14rem] list-none">
@@ -97,11 +113,16 @@ function ServiceCard({
               </p>
             </div>
 
-            <div className="pt-2">
+            <div className="pt-2 flex items-center gap-3">
               <InteractiveHoverButton
                 text="Poll"
                 className="w-28"
                 onClick={() => onPoll(service.id)}
+              />
+              <InteractiveHoverButton
+                text="Changes"
+                className="w-32"
+                onClick={() => onViewChanges(service.id)}
               />
             </div>
           </div>
@@ -111,12 +132,15 @@ function ServiceCard({
   );
 }
 
+// ── Change Row ────────────────────────────────────────────────
 function ChangeRow({ change }: { change: Change }) {
   return (
     <div className="flex items-start justify-between rounded-xl border-[0.75px] border-border bg-card p-4">
       <div className="flex-1">
         <div className="flex items-center gap-2 mb-2">
-          <span className="font-semibold text-sm capitalize">{change.service}</span>
+          <span className="font-semibold text-sm capitalize">
+            {change.service}
+          </span>
           <span className="text-xs text-muted-foreground">
             {new Date(change.created_at).toLocaleString()}
           </span>
@@ -134,13 +158,146 @@ function ChangeRow({ change }: { change: Change }) {
   );
 }
 
+// ── Settings Page ─────────────────────────────────────────────
+function SettingsPage({
+  services,
+  onSave,
+}: {
+  services: Service[];
+  onSave: (serviceId: string, apiKey: string) => void;
+}) {
+  const [keys, setKeys] = useState<Record<string, string>>({});
+  const [visible, setVisible] = useState<Record<string, boolean>>({});
+  const [saved, setSaved] = useState<Record<string, boolean>>({});
+
+  useEffect(() => {
+    const initial: Record<string, string> = {};
+    services.forEach((s) => {
+      initial[s.id] = s.api_key || "";
+    });
+    setKeys(initial);
+  }, [services]);
+
+  const handleSave = (serviceId: string) => {
+    onSave(serviceId, keys[serviceId] || "");
+    setSaved((prev) => ({ ...prev, [serviceId]: true }));
+    setTimeout(() => {
+      setSaved((prev) => ({ ...prev, [serviceId]: false }));
+    }, 2000);
+  };
+
+  return (
+    <div>
+      <div className="mb-8">
+        <h1 className="text-2xl font-bold mb-2">Settings</h1>
+        <p className="text-muted-foreground">
+          Connect your SaaS accounts to start monitoring configuration changes
+        </p>
+      </div>
+
+      <div className="space-y-6">
+        {services.map((service) => (
+          <div
+            key={service.id}
+            className="rounded-xl border border-border bg-card p-6"
+          >
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-3">
+                <div className="w-fit rounded-lg border-[0.75px] border-border bg-muted p-2">
+                  {SERVICE_ICONS[service.id] || (
+                    <Activity className="h-4 w-4" />
+                  )}
+                </div>
+                <div>
+                  <h3 className="font-semibold">{service.name}</h3>
+                  <div className="flex items-center gap-2 mt-0.5">
+                    {service.connected ? (
+                      <span className="flex items-center gap-1 text-xs text-emerald-400">
+                        <CheckCircle2 className="h-3 w-3" />
+                        Linked
+                      </span>
+                    ) : (
+                      <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                        <AlertTriangle className="h-3 w-3" />
+                        Not linked
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+              <a
+                href={SERVICE_DOCS[service.id]}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+              >
+                Get API key <ExternalLink className="h-3 w-3" />
+              </a>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <div className="relative flex-1">
+                <Key className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <input
+                  type={visible[service.id] ? "text" : "password"}
+                  value={keys[service.id] || ""}
+                  onChange={(e) =>
+                    setKeys((prev) => ({ ...prev, [service.id]: e.target.value }))
+                  }
+                  placeholder={`Enter ${service.name} API key`}
+                  className="w-full rounded-lg border border-border bg-background pl-10 pr-10 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all"
+                />
+                <button
+                  onClick={() =>
+                    setVisible((prev) => ({
+                      ...prev,
+                      [service.id]: !prev[service.id],
+                    }))
+                  }
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  {visible[service.id] ? (
+                    <EyeOff className="h-4 w-4" />
+                  ) : (
+                    <Eye className="h-4 w-4" />
+                  )}
+                </button>
+              </div>
+              <button
+                onClick={() => handleSave(service.id)}
+                className="rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
+              >
+                {saved[service.id] ? "Saved!" : "Save"}
+              </button>
+              {keys[service.id] && (
+                <button
+                  onClick={() => {
+                    setKeys((prev) => ({ ...prev, [service.id]: "" }));
+                    onSave(service.id, "");
+                  }}
+                  className="rounded-lg border border-border px-3 py-2.5 text-sm text-muted-foreground hover:text-destructive hover:border-destructive transition-colors"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ── Main Dashboard ────────────────────────────────────────────
 export default function Dashboard() {
+  const [activeTab, setActiveTab] = useState<number | null>(0);
   const [services, setServices] = useState<Service[]>([]);
   const [pollingStates, setPollingStates] = useState<
     Record<string, "idle" | "polling" | "connected">
   >({});
   const [changes, setChanges] = useState<Change[]>([]);
   const [loading, setLoading] = useState(true);
+  const [filterService, setFilterService] = useState<string | null>(null);
 
   const fetchServices = useCallback(() => {
     fetch("/api/services")
@@ -179,7 +336,6 @@ export default function Dashboard() {
     try {
       await fetch(`/api/services/${serviceId}/poll`, { method: "POST" });
       setPollingStates((prev) => ({ ...prev, [serviceId]: "connected" }));
-      // Refresh data
       fetchServices();
       fetchChanges();
     } catch {
@@ -187,10 +343,36 @@ export default function Dashboard() {
     }
   };
 
-  const connectedCount = services.filter(
-    (s) => s.last_polled_at !== null
-  ).length;
+  const handleViewChanges = (serviceId: string) => {
+    setFilterService((prev) => (prev === serviceId ? null : serviceId));
+  };
+
+  const handleSaveApiKey = async (serviceId: string, apiKey: string) => {
+    try {
+      await fetch(`/api/services/${serviceId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ api_key: apiKey }),
+      });
+      fetchServices();
+    } catch {
+      // silent fail
+    }
+  };
+
+  const connectedCount = services.filter((s) => s.connected).length;
   const acknowledgedCount = changes.filter((c) => c.acknowledged).length;
+  const displayedChanges = filterService
+    ? changes.filter((c) => c.service === filterService)
+    : changes;
+
+  const tabs = [
+    { title: "Dashboard", icon: LayoutDashboard },
+    { title: "Alerts", icon: Bell },
+    { type: "separator" as const },
+    { title: "Settings", icon: Settings },
+    { title: "Help", icon: HelpCircle },
+  ];
 
   return (
     <div className="min-h-screen bg-background">
@@ -200,95 +382,119 @@ export default function Dashboard() {
           <div className="flex items-center gap-3">
             <Shield className="h-6 w-6 text-primary" />
             <span className="text-lg font-semibold">DriftGuard</span>
-            <span className="text-sm text-muted-foreground">SaaS Config Monitor</span>
+            <span className="text-sm text-muted-foreground">
+              SaaS Config Monitor
+            </span>
           </div>
           <ExpandableTabs
-            tabs={[
-              { title: "Dashboard", icon: LayoutDashboard },
-              { title: "Alerts", icon: Bell },
-              { type: "separator" },
-              { title: "Settings", icon: Settings },
-              { title: "Help", icon: HelpCircle },
-            ]}
+            tabs={tabs}
             className="border-border"
+            onChange={(index) => {
+              setActiveTab(index);
+              if (index !== null && tabs[index].type !== "separator") {
+                const title = (tabs[index] as { title: string }).title;
+                if (title === "Dashboard") setActiveTab(0);
+              }
+            }}
           />
         </div>
       </nav>
 
       {/* Content */}
       <main className="mx-auto max-w-7xl px-6 py-8">
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-2xl font-bold mb-2">Dashboard</h1>
-          <p className="text-muted-foreground">
-            Monitor your SaaS configuration for unexpected changes
-          </p>
-        </div>
-
-        {/* Service Cards */}
-        <ul className="grid grid-cols-1 gap-4 md:grid-cols-3 lg:gap-6 mb-12">
-          {services.map((service) => (
-            <ServiceCard
-              key={service.id}
-              service={service}
-              status={pollingStates[service.id] || "idle"}
-              onPoll={handlePoll}
-            />
-          ))}
-        </ul>
-
-        {/* Stats */}
-        <div className="grid grid-cols-3 gap-4 mb-8">
-          <div className="rounded-xl border border-border bg-card p-4">
-            <div className="flex items-center gap-2 text-muted-foreground mb-1">
-              <Activity className="h-4 w-4" />
-              <span className="text-xs">Services</span>
-            </div>
-            <span className="text-2xl font-bold">{services.length}</span>
-          </div>
-          <div className="rounded-xl border border-border bg-card p-4">
-            <div className="flex items-center gap-2 text-muted-foreground mb-1">
-              <AlertTriangle className="h-4 w-4" />
-              <span className="text-xs">Changes (24h)</span>
-            </div>
-            <span className="text-2xl font-bold">{changes.length}</span>
-          </div>
-          <div className="rounded-xl border border-border bg-card p-4">
-            <div className="flex items-center gap-2 text-muted-foreground mb-1">
-              <CheckCircle2 className="h-4 w-4" />
-              <span className="text-xs">Healthy</span>
-            </div>
-            <span className="text-2xl font-bold text-emerald-400">
-              {changes.length > 0
-                ? `${acknowledgedCount}/${changes.length}`
-                : `${connectedCount}/${services.length}`}
-            </span>
-          </div>
-        </div>
-
-        {/* Recent Changes */}
-        <div>
-          <h2 className="text-lg font-semibold mb-4">Recent Changes</h2>
-          {loading ? (
-            <p className="text-muted-foreground">Loading...</p>
-          ) : changes.length === 0 ? (
-            <div className="rounded-xl border border-border bg-card p-12 text-center">
-              <CheckCircle2 className="h-12 w-12 text-emerald-400 mx-auto mb-3" />
+        {activeTab === 3 /* Settings */ ? (
+          <SettingsPage services={services} onSave={handleSaveApiKey} />
+        ) : (
+          <>
+            {/* Header */}
+            <div className="mb-8">
+              <h1 className="text-2xl font-bold mb-2">Dashboard</h1>
               <p className="text-muted-foreground">
-                No configuration changes detected yet.
-              </p>
-              <p className="text-sm text-muted-foreground mt-1">
-                Poll your services to start monitoring.
+                Monitor your SaaS configuration for unexpected changes
               </p>
             </div>
-          ) : (
-            <div className="space-y-3">
-              {changes.map((change) => (
-                <ChangeRow key={change.id} change={change} />
+
+            {/* Service Cards */}
+            <ul className="grid grid-cols-1 gap-4 md:grid-cols-3 lg:gap-6 mb-12">
+              {services.map((service) => (
+                <ServiceCard
+                  key={service.id}
+                  service={service}
+                  status={pollingStates[service.id] || "idle"}
+                  onPoll={handlePoll}
+                  onViewChanges={handleViewChanges}
+                />
               ))}
+            </ul>
+
+            {/* Stats */}
+            <div className="grid grid-cols-3 gap-4 mb-8">
+              <div className="rounded-xl border border-border bg-card p-4">
+                <div className="flex items-center gap-2 text-muted-foreground mb-1">
+                  <Activity className="h-4 w-4" />
+                  <span className="text-xs">Services</span>
+                </div>
+                <span className="text-2xl font-bold">{services.length}</span>
+              </div>
+              <div className="rounded-xl border border-border bg-card p-4">
+                <div className="flex items-center gap-2 text-muted-foreground mb-1">
+                  <AlertTriangle className="h-4 w-4" />
+                  <span className="text-xs">Changes (24h)</span>
+                </div>
+                <span className="text-2xl font-bold">{changes.length}</span>
+              </div>
+              <div className="rounded-xl border border-border bg-card p-4">
+                <div className="flex items-center gap-2 text-muted-foreground mb-1">
+                  <CheckCircle2 className="h-4 w-4" />
+                  <span className="text-xs">Linked</span>
+                </div>
+                <span className="text-2xl font-bold text-emerald-400">
+                  {connectedCount}/{services.length}
+                </span>
+              </div>
             </div>
-          )}
-        </div>
+
+            {/* Recent Changes */}
+            <div>
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-lg font-semibold">
+                  {filterService
+                    ? `${services.find((s) => s.id === filterService)?.name || filterService} Changes`
+                    : "Recent Changes"}
+                </h2>
+                {filterService && (
+                  <button
+                    onClick={() => setFilterService(null)}
+                    className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    Show all ×
+                  </button>
+                )}
+              </div>
+              {loading ? (
+                <p className="text-muted-foreground">Loading...</p>
+              ) : displayedChanges.length === 0 ? (
+                <div className="rounded-xl border border-border bg-card p-12 text-center">
+                  <CheckCircle2 className="h-12 w-12 text-emerald-400 mx-auto mb-3" />
+                  <p className="text-muted-foreground">
+                    {filterService
+                      ? "No changes for this service yet."
+                      : "No configuration changes detected yet."}
+                  </p>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Poll your services to start monitoring.
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {displayedChanges.map((change) => (
+                    <ChangeRow key={change.id} change={change} />
+                  ))}
+                </div>
+              )}
+            </div>
+          </>
+        )}
       </main>
     </div>
   );

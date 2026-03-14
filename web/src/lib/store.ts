@@ -6,6 +6,8 @@ export interface Service {
   enabled: boolean;
   last_polled_at: string | null;
   created_at: string;
+  api_key?: string;
+  connected: boolean;
 }
 
 export interface Change {
@@ -23,6 +25,8 @@ export const services: Service[] = [
     enabled: true,
     last_polled_at: null,
     created_at: new Date().toISOString(),
+    api_key: "",
+    connected: false,
   },
   {
     id: "vercel",
@@ -30,6 +34,8 @@ export const services: Service[] = [
     enabled: true,
     last_polled_at: null,
     created_at: new Date().toISOString(),
+    api_key: "",
+    connected: false,
   },
   {
     id: "sendgrid",
@@ -37,6 +43,8 @@ export const services: Service[] = [
     enabled: true,
     last_polled_at: null,
     created_at: new Date().toISOString(),
+    api_key: "",
+    connected: false,
   },
 ];
 
