@@ -116,13 +116,45 @@ export async function getChangesForUser(userId: string, limit = 20, serviceId?: 
   return data || [];
 }
 
+// Service name lookup for creating new service rows
+const SERVICE_NAMES: Record<string, string> = {
+  stripe: "Stripe", vercel: "Vercel", sendgrid: "SendGrid", github: "GitHub",
+  cloudflare: "Cloudflare", twilio: "Twilio", datadog: "Datadog", slack: "Slack",
+  aws: "AWS", gcp: "Google Cloud", azure: "Azure", okta: "Okta",
+  pagerduty: "PagerDuty", jira: "Jira", mongodb: "MongoDB Atlas", auth0: "Auth0",
+  supabase: "Supabase", firebase: "Firebase", hubspot: "HubSpot", zendesk: "Zendesk",
+  intercom: "Intercom", linear: "Linear", notion: "Notion", sentry: "Sentry",
+  newrelic: "New Relic", launchdarkly: "LaunchDarkly", algolia: "Algolia", mixpanel: "Mixpanel",
+};
+
 export async function updateServiceApiKey(userId: string, serviceId: string, apiKey: string) {
   const connected = apiKey.length > 0;
-  await getSupabase()
+
+  // Check if service row exists for this user
+  const { data: existing } = await getSupabase()
     .from("services")
-    .update({ api_key: apiKey, connected })
+    .select("id")
     .eq("id", serviceId)
-    .eq("user_id", userId);
+    .eq("user_id", userId)
+    .single();
+
+  if (!existing) {
+    // Create the service row first
+    await getSupabase().from("services").insert({
+      id: serviceId,
+      user_id: userId,
+      name: SERVICE_NAMES[serviceId] || serviceId,
+      api_key: apiKey,
+      connected,
+    });
+  } else {
+    // Update existing
+    await getSupabase()
+      .from("services")
+      .update({ api_key: apiKey, connected })
+      .eq("id", serviceId)
+      .eq("user_id", userId);
+  }
 
   const { data } = await getSupabase()
     .from("services")

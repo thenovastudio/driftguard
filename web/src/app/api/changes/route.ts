@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { getChangesForUser } from "@/lib/polling";
 
+export const dynamic = "force-dynamic";
+export const fetchCache = "force-no-store";
+
 export async function GET(req: NextRequest) {
   const { userId } = await auth();
   if (!userId) {

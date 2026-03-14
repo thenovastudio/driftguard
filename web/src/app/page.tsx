@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useAuth } from "@clerk/nextjs";
 import {
   Shield,
   Eye,
@@ -166,7 +167,7 @@ const STATS = [
 ];
 
 // ── Components ───────────────────────────────────────────────
-function Nav() {
+function Nav({ isSignedIn }: { isSignedIn: boolean }) {
   const [mobileOpen, setMobileOpen] = useState(false);
 
   return (
@@ -193,10 +194,10 @@ function Nav() {
           </a>
           <ThemeToggle />
           <a
-            href="/register"
+            href={isSignedIn ? "/dashboard" : "/register"}
             className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
           >
-            Sign In <ArrowRight className="h-4 w-4" />
+            {isSignedIn ? "Open Dashboard" : "Sign In"} <ArrowRight className="h-4 w-4" />
           </a>
         </div>
 
@@ -216,14 +217,14 @@ function Nav() {
           <a href="#how-it-works" className="block text-sm text-muted-foreground">How it works</a>
           <a href="#integrations" className="block text-sm text-muted-foreground">Integrations</a>
           <a href="#pricing" className="block text-sm text-muted-foreground">Pricing</a>
-          <a href="/login" className="block text-sm text-primary font-medium">Sign In →</a>
+          <a href={isSignedIn ? "/dashboard" : "/login"} className="block text-sm text-primary font-medium">{isSignedIn ? "Open Dashboard →" : "Sign In →"}</a>
         </div>
       )}
     </nav>
   );
 }
 
-function HeroSection() {
+function HeroSection({ isSignedIn }: { isSignedIn: boolean }) {
   return (
     <section className="relative pt-32 pb-20 px-6 overflow-hidden">
       {/* Background glow */}
@@ -247,7 +248,7 @@ function HeroSection() {
         </p>
 
         <div className="flex items-center justify-center gap-4 flex-wrap">
-          <GetStartedButton href="/register" />
+          <GetStartedButton href={isSignedIn ? "/dashboard" : "/register"} label={isSignedIn ? "Open Dashboard" : undefined} />
           <a
             href="#how-it-works"
             className="inline-flex items-center gap-2 rounded-lg border border-border px-6 py-3 text-base font-medium hover:bg-muted transition-colors"
@@ -443,7 +444,7 @@ function IntegrationsSection() {
   );
 }
 
-function PricingSection() {
+function PricingSection({ isSignedIn }: { isSignedIn: boolean }) {
   return (
     <section id="pricing" className="py-20 px-6 bg-muted/30">
       <div className="mx-auto max-w-7xl">
@@ -481,10 +482,10 @@ function PricingSection() {
               ))}
             </ul>
             <a
-              href="/register"
+              href={isSignedIn ? "/dashboard" : "/register"}
               className="block text-center rounded-lg border border-border px-4 py-2.5 text-sm font-medium hover:bg-muted transition-colors"
             >
-              Start Free Trial
+              {isSignedIn ? "Open Dashboard" : "Start Free Trial"}
             </a>
           </div>
 
@@ -517,10 +518,10 @@ function PricingSection() {
               ))}
             </ul>
             <a
-              href="/register"
+              href={isSignedIn ? "/dashboard" : "/register"}
               className="block text-center rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
             >
-              Start 14-day trial
+              {isSignedIn ? "Open Dashboard" : "Start 14-day trial"}
             </a>
           </div>
 
@@ -551,10 +552,10 @@ function PricingSection() {
               ))}
             </ul>
             <a
-              href="/register"
+              href={isSignedIn ? "/dashboard" : "/register"}
               className="block text-center rounded-lg border border-border px-4 py-2.5 text-sm font-medium hover:bg-muted transition-colors"
             >
-              Contact sales
+              {isSignedIn ? "Open Dashboard" : "Contact sales"}
             </a>
           </div>
         </div>
@@ -563,7 +564,7 @@ function PricingSection() {
   );
 }
 
-function FinalCTASection() {
+function FinalCTASection({ isSignedIn }: { isSignedIn: boolean }) {
   return (
     <section className="py-20 px-6">
       <div className="mx-auto max-w-3xl text-center">
@@ -579,10 +580,10 @@ function FinalCTASection() {
               a minute.
             </p>
             <a
-              href="/register"
+              href={isSignedIn ? "/dashboard" : "/register"}
               className="inline-flex items-center gap-2 rounded-lg bg-primary px-6 py-3 text-base font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
             >
-              Sign In <ArrowRight className="h-4 w-4" />
+              {isSignedIn ? "Open Dashboard" : "Sign In"} <ArrowRight className="h-4 w-4" />
             </a>
           </div>
         </div>
@@ -636,7 +637,7 @@ function Footer() {
         <div className="border-t border-border pt-8 text-center text-sm text-muted-foreground">
           © 2026 DriftGuard. Built by{" "}
           <a
-            href="https://github.com/thenovastudio"
+            href="https://thenovastudio.be"
             className="text-primary hover:underline"
           >
             The Nova Studio
@@ -649,16 +650,19 @@ function Footer() {
 
 // ── Main Landing Page ────────────────────────────────────────
 export default function LandingPage() {
+  const { isSignedIn } = useAuth();
+  const signedIn = !!isSignedIn;
+
   return (
     <div className="min-h-screen bg-background">
-      <Nav />
-      <HeroSection />
+      <Nav isSignedIn={signedIn} />
+      <HeroSection isSignedIn={signedIn} />
       <PainPointsSection />
       <FeaturesSection />
       <HowItWorksSection />
       <IntegrationsSection />
-      <PricingSection />
-      <FinalCTASection />
+      <PricingSection isSignedIn={signedIn} />
+      <FinalCTASection isSignedIn={signedIn} />
       <Footer />
     </div>
   );
