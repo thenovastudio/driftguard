@@ -159,13 +159,17 @@ const SERVICE_SETUP_GUIDE: Record<string, { title: string; steps: string[] }> = 
 function ServiceCard({
   service,
   status,
+  changesCount,
   onPoll,
   onViewChanges,
+  isFiltered,
 }: {
   service: Service;
   status: "idle" | "polling" | "connected";
+  changesCount: number;
   onPoll: (id: string) => void;
   onViewChanges: (id: string) => void;
+  isFiltered: boolean;
 }) {
   return (
     <li className="min-h-[14rem] list-none">
@@ -221,11 +225,21 @@ function ServiceCard({
                 className="w-28"
                 onClick={() => onPoll(service.id)}
               />
-              <InteractiveHoverButton
-                text="Changes"
-                className="w-32"
+              <button
                 onClick={() => onViewChanges(service.id)}
-              />
+                className={`group relative w-32 cursor-pointer overflow-hidden rounded-full border p-2 text-center font-semibold transition-colors ${
+                  isFiltered
+                    ? "border-primary bg-primary/10 text-primary"
+                    : "border-border bg-background text-foreground hover:bg-muted"
+                }`}
+              >
+                <span className="inline-block">Changes</span>
+                {changesCount > 0 && (
+                  <span className="ml-1.5 inline-flex items-center justify-center rounded-full bg-primary text-primary-foreground text-xs w-5 h-5">
+                    {changesCount}
+                  </span>
+                )}
+              </button>
             </div>
           </div>
         </div>
@@ -487,8 +501,9 @@ export default function Dashboard() {
         service: serviceId,
         count: data.changesGenerated || 0,
       });
-      // Auto-clear after 4s
-      setTimeout(() => setPollResult(null), 4000);
+      setTimeout(() => setPollResult(null), 5000);
+      // Auto-filter changes to show this service's results
+      setFilterService(serviceId);
       fetchServices();
       fetchChanges();
     } catch {
@@ -567,24 +582,38 @@ export default function Dashboard() {
             {pollResult && (
               <div
                 className={cn(
-                  "mb-6 rounded-lg border px-4 py-3 text-sm flex items-center gap-2",
+                  "mb-6 rounded-lg border px-4 py-3 text-sm flex items-center justify-between gap-2",
                   pollResult.count > 0
                     ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-400"
                     : "border-border bg-muted/50 text-muted-foreground"
                 )}
               >
-                {pollResult.count > 0 ? (
-                  <CheckCircle2 className="h-4 w-4 shrink-0" />
-                ) : (
-                  <AlertTriangle className="h-4 w-4 shrink-0" />
+                <div className="flex items-center gap-2">
+                  {pollResult.count > 0 ? (
+                    <CheckCircle2 className="h-4 w-4 shrink-0" />
+                  ) : (
+                    <AlertTriangle className="h-4 w-4 shrink-0" />
+                  )}
+                  <span>
+                    <strong className="capitalize">{pollResult.service}</strong>{" "}
+                    polled —{" "}
+                    {pollResult.count > 0
+                      ? `${pollResult.count} change${pollResult.count > 1 ? "s" : ""} detected`
+                      : "no changes detected (poll again — results are randomized for demo)"}
+                  </span>
+                </div>
+                {pollResult.count > 0 && (
+                  <a
+                    href="#changes"
+                    className="text-xs underline hover:no-underline shrink-0"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      document.getElementById("changes")?.scrollIntoView({ behavior: "smooth" });
+                    }}
+                  >
+                    View changes ↓
+                  </a>
                 )}
-                <span>
-                  <strong className="capitalize">{pollResult.service}</strong>{" "}
-                  polled —{" "}
-                  {pollResult.count > 0
-                    ? `${pollResult.count} change${pollResult.count > 1 ? "s" : ""} detected`
-                    : "no changes detected this time (try again or change config on the provider side)"}
-                </span>
               </div>
             )}
 
@@ -622,6 +651,8 @@ export default function Dashboard() {
                     key={service.id}
                     service={service}
                     status={pollingStates[service.id] || "idle"}
+                    changesCount={changes.filter((c) => c.service === service.id).length}
+                    isFiltered={filterService === service.id}
                     onPoll={handlePoll}
                     onViewChanges={handleViewChanges}
                   />
@@ -661,7 +692,7 @@ export default function Dashboard() {
             </div>
 
             {/* Recent Changes */}
-            <div>
+            <div id="changes">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-lg font-semibold">
                   {filterService
