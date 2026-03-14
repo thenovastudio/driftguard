@@ -57,7 +57,7 @@ export const PLANS: Record<string, Plan> = {
   business: {
     id: "business",
     name: "Business",
-    price: 7900 // $79/mo
+    price: 7900, // $79/mo
     priceId: "price_1TAtaiKuSv8O1x6SHiBS4vUW", // SET AFTER CREATING STRIPE PRICE
     maxServices: 999,
     pollIntervalMs: 60 * 1000, // 1 minute
