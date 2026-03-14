@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useUser, useClerk } from "@clerk/nextjs";
 import {
   CreditCard,
   Globe,
@@ -24,7 +25,6 @@ import {
   Hash,
   LogOut,
   Crown,
-  Clock,
 } from "lucide-react";
 import { GlowingEffect } from "@/components/ui/glowing-effect";
 import { InteractiveHoverButton } from "@/components/ui/interactive-hover-button";
@@ -50,11 +50,9 @@ interface Change {
 }
 
 interface User {
-  id: number;
   email: string;
   name: string;
   plan: string;
-  trial_ends_at: string | null;
   plan_details: {
     name: string;
     maxServices: number;
@@ -365,12 +363,6 @@ function SettingsPage({
                 <Crown className="h-4 w-4 text-amber-400" />
                 {user.plan_details.name} Plan
               </div>
-              {user.trial_ends_at && user.plan === "trial" && (
-                <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                  <Clock className="h-3 w-3" />
-                  Trial ends {new Date(user.trial_ends_at).toLocaleDateString()}
-                </div>
-              )}
             </div>
           )}
           <ThemeToggle />
@@ -527,7 +519,8 @@ function SettingsPage({
 // ── Main Dashboard ────────────────────────────────────────────
 export default function Dashboard() {
   const [page, setPage] = useState<"dashboard" | "settings">("dashboard");
-  const [user, setUser] = useState<User | null>(null);
+  const { user: clerkUser, isLoaded } = useUser();
+  const { signOut } = useClerk();
   const [services, setServices] = useState<Service[]>([]);
   const [pollingStates, setPollingStates] = useState<
     Record<string, "idle" | "polling" | "connected">
@@ -541,21 +534,10 @@ export default function Dashboard() {
   } | null>(null);
   const [authChecked, setAuthChecked] = useState(false);
 
-  // Check auth on mount
+  // Clerk handles auth via middleware — just wait for user to load
   useEffect(() => {
-    fetch("/api/auth/me")
-      .then((r) => {
-        if (!r.ok) throw new Error("Not authed");
-        return r.json();
-      })
-      .then((data) => {
-        setUser(data.user);
-        setAuthChecked(true);
-      })
-      .catch(() => {
-        window.location.href = "/login";
-      });
-  }, []);
+    if (isLoaded) setAuthChecked(true);
+  }, [isLoaded]);
 
   const fetchServices = useCallback(() => {
     fetch("/api/services")
@@ -641,9 +623,8 @@ export default function Dashboard() {
     }
   };
 
-  const handleLogout = async () => {
-    await fetch("/api/auth/logout", { method: "POST" });
-    window.location.href = "/login";
+  const handleLogout = () => {
+    signOut({ redirectUrl: "/" });
   };
 
   if (!authChecked) {
@@ -653,6 +634,23 @@ export default function Dashboard() {
       </div>
     );
   }
+
+  // Build user profile from Clerk
+  const user: User = clerkUser ? {
+    email: clerkUser.emailAddresses[0]?.emailAddress || "",
+    name: clerkUser.firstName || clerkUser.emailAddresses[0]?.emailAddress?.split("@")[0] || "User",
+    plan: "trial", // Default — managed via Stripe webhook
+    plan_details: {
+      name: "Trial",
+      maxServices: 15,
+      pollIntervalMs: 5 * 60 * 1000,
+      historyDays: 14,
+      features: ["15 services", "5-min polling", "14-day history", "All channels"],
+    },
+  } : {
+    email: "", name: "", plan: "free",
+    plan_details: { name: "Free", maxServices: 3, pollIntervalMs: 30 * 60 * 1000, historyDays: 7, features: [] },
+  };
 
   const linkedServices = services.filter((s) => s.connected);
   const acknowledgedCount = changes.filter(
@@ -786,13 +784,9 @@ export default function Dashboard() {
                       <span className="font-medium">
                         {user.plan_details.name}
                       </span>
-                      {user.plan === "trial" && user.trial_ends_at && (
+                      {user.plan === "trial" && (
                         <span className="text-xs text-muted-foreground">
-                          (trial ends{" "}
-                          {new Date(
-                            user.trial_ends_at
-                          ).toLocaleDateString()}
-                          )
+                          (14-day trial)
                         </span>
                       )}
                     </div>

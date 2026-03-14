@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getAuthUser } from "@/lib/auth";
+import { auth } from "@clerk/nextjs/server";
 import { updateServiceApiKey } from "@/lib/polling";
 
 export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const auth = await getAuthUser();
-  if (!auth) {
+  const { userId } = await auth();
+  if (!userId) {
     return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   }
 
@@ -15,7 +15,7 @@ export async function PATCH(
   const body = await req.json();
 
   if (body.api_key !== undefined) {
-    const updated = await updateServiceApiKey(auth.userId, id, body.api_key);
+    const updated = await updateServiceApiKey(userId, id, body.api_key);
     return NextResponse.json(updated);
   }
 

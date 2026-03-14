@@ -1,12 +1,13 @@
 import { NextResponse } from "next/server";
-import { getAuthUser } from "@/lib/auth";
-import { getServicesForUser } from "@/lib/polling";
+import { auth } from "@clerk/nextjs/server";
+import { getServicesForUser, ensureUserServices } from "@/lib/polling";
 
 export async function GET() {
-  const auth = await getAuthUser();
-  if (!auth) {
+  const { userId } = await auth();
+  if (!userId) {
     return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   }
-  const services = await getServicesForUser(auth.userId);
+  await ensureUserServices(userId);
+  const services = await getServicesForUser(userId);
   return NextResponse.json(services);
 }

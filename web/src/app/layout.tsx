@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { ClerkProvider } from "@clerk/nextjs";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -17,36 +18,35 @@ export const metadata: Metadata = {
   description: "Catch SaaS config changes before they cause outages",
 };
 
-const themeScript = `
-(function() {
-  try {
-    var t = localStorage.getItem('theme');
-    if (t === 'light') {
-      document.documentElement.classList.remove('dark');
-    } else {
-      document.documentElement.classList.add('dark');
-    }
-  } catch(e) {
-    document.documentElement.classList.add('dark');
-  }
-})();
-`;
-
 export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning>
-      <head>
-        <script dangerouslySetInnerHTML={{ __html: themeScript }} />
-      </head>
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-      >
-        {children}
-      </body>
-    </html>
+    <ClerkProvider>
+      <html lang="en" suppressHydrationWarning>
+        <head>
+          <script
+            dangerouslySetInnerHTML={{
+              __html: `
+                (function() {
+                  try {
+                    var t = localStorage.getItem('theme');
+                    if (t === 'light') { document.documentElement.classList.remove('dark'); }
+                    else { document.documentElement.classList.add('dark'); }
+                  } catch(e) { document.documentElement.classList.add('dark'); }
+                })();
+              `,
+            }}
+          />
+        </head>
+        <body
+          className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        >
+          {children}
+        </body>
+      </html>
+    </ClerkProvider>
   );
 }

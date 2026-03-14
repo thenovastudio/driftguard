@@ -1,6 +1,6 @@
-import { queryAll, queryOne, run, lastInsertRowId } from "@/lib/db";
+import { getSupabase } from "@/lib/supabase";
 
-// Polling simulation — generates realistic config diffs
+// Polling simulation
 const configBaselines: Record<string, Record<string, unknown>> = {
   stripe: { webhook_url: "https://app.example.com/stripe", currency: "usd", statement_descriptor: "DRIFTGUARD" },
   vercel: { framework: "nextjs", region: "iad1", build_command: "next build" },
@@ -55,15 +55,15 @@ const pollableFields: Record<string, Array<{ key: string; values: unknown[] }>> 
   ],
 };
 
-export async function simulatePoll(userId: number, serviceId: string): Promise<{
-  service: string;
-  changesGenerated: number;
-}> {
-  await run(
-    "UPDATE services SET last_polled_at = datetime('now') WHERE id = ? AND user_id = ?",
-    [serviceId, userId]
-  );
+export async function simulatePoll(userId: string, serviceId: string) {
+  // Update last_polled_at
+  await getSupabase()
+    .from("services")
+    .update({ last_polled_at: new Date().toISOString() })
+    .eq("id", serviceId)
+    .eq("user_id", userId);
 
+  // ~40% chance of generating a change
   if (Math.random() > 0.4) {
     return { service: serviceId, changesGenerated: 0 };
   }
@@ -82,42 +82,84 @@ export async function simulatePoll(userId: number, serviceId: string): Promise<{
 
   const diff = { [field.key]: { old: oldValue, new: newValue } };
 
-  await run(
-    "INSERT INTO changes (user_id, service_id, diff) VALUES (?, ?, ?)",
-    [userId, serviceId, JSON.stringify(diff)]
-  );
+  await getSupabase().from("changes").insert({
+    user_id: userId,
+    service_id: serviceId,
+    diff: JSON.stringify(diff),
+  });
 
   return { service: serviceId, changesGenerated: 1 };
 }
 
-export async function getServicesForUser(userId: number) {
-  return queryAll(
-    "SELECT * FROM services WHERE user_id = ? ORDER BY created_at",
-    [userId]
-  );
+export async function getServicesForUser(userId: string) {
+  const { data } = await getSupabase()
+    .from("services")
+    .select("*")
+    .eq("user_id", userId)
+    .order("created_at");
+  return data || [];
 }
 
-export async function getChangesForUser(userId: number, limit = 20, serviceId?: string) {
+export async function getChangesForUser(userId: string, limit = 20, serviceId?: string) {
+  let query = getSupabase()
+    .from("changes")
+    .select("*")
+    .eq("user_id", userId)
+    .order("created_at", { ascending: false })
+    .limit(limit);
+
   if (serviceId) {
-    return queryAll(
-      "SELECT * FROM changes WHERE user_id = ? AND service_id = ? ORDER BY created_at DESC LIMIT ?",
-      [userId, serviceId, limit]
-    );
+    query = query.eq("service_id", serviceId);
   }
-  return queryAll(
-    "SELECT * FROM changes WHERE user_id = ? ORDER BY created_at DESC LIMIT ?",
-    [userId, limit]
-  );
+
+  const { data } = await query;
+  return data || [];
 }
 
-export async function updateServiceApiKey(userId: number, serviceId: string, apiKey: string) {
-  const connected = apiKey.length > 0 ? 1 : 0;
-  await run(
-    "UPDATE services SET api_key = ?, connected = ? WHERE id = ? AND user_id = ?",
-    [apiKey, connected, serviceId, userId]
-  );
-  return queryOne(
-    "SELECT * FROM services WHERE id = ? AND user_id = ?",
-    [serviceId, userId]
+export async function updateServiceApiKey(userId: string, serviceId: string, apiKey: string) {
+  const connected = apiKey.length > 0;
+  await getSupabase()
+    .from("services")
+    .update({ api_key: apiKey, connected })
+    .eq("id", serviceId)
+    .eq("user_id", userId);
+
+  const { data } = await getSupabase()
+    .from("services")
+    .select("*")
+    .eq("id", serviceId)
+    .eq("user_id", userId)
+    .single();
+  return data;
+}
+
+export async function ensureUserServices(userId: string) {
+  // Check if user already has services
+  const { data: existing } = await getSupabase()
+    .from("services")
+    .select("id")
+    .eq("user_id", userId)
+    .limit(1);
+
+  if (existing && existing.length > 0) return;
+
+  // Create default services
+  const defaultServices = [
+    { id: "stripe", name: "Stripe" },
+    { id: "vercel", name: "Vercel" },
+    { id: "sendgrid", name: "SendGrid" },
+    { id: "github", name: "GitHub" },
+    { id: "cloudflare", name: "Cloudflare" },
+    { id: "twilio", name: "Twilio" },
+    { id: "datadog", name: "Datadog" },
+    { id: "slack", name: "Slack" },
+  ];
+
+  await getSupabase().from("services").insert(
+    defaultServices.map((s) => ({
+      id: s.id,
+      user_id: userId,
+      name: s.name,
+    }))
   );
 }

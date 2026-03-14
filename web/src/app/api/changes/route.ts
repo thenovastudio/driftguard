@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getAuthUser } from "@/lib/auth";
+import { auth } from "@clerk/nextjs/server";
 import { getChangesForUser } from "@/lib/polling";
 
 export async function GET(req: NextRequest) {
-  const auth = await getAuthUser();
-  if (!auth) {
+  const { userId } = await auth();
+  if (!userId) {
     return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   }
 
@@ -12,6 +12,6 @@ export async function GET(req: NextRequest) {
   const limit = parseInt(searchParams.get("limit") || "20");
   const serviceId = searchParams.get("service") || undefined;
 
-  const changes = await getChangesForUser(auth.userId, limit, serviceId);
+  const changes = await getChangesForUser(userId, limit, serviceId);
   return NextResponse.json(changes);
 }
