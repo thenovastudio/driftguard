@@ -11,9 +11,7 @@ import {
   CheckCircle2,
   RefreshCw,
   LayoutDashboard,
-  Bell,
   Settings,
-  HelpCircle,
   Key,
   ExternalLink,
   Trash2,
@@ -27,8 +25,8 @@ import {
 } from "lucide-react";
 import { GlowingEffect } from "@/components/ui/glowing-effect";
 import { InteractiveHoverButton } from "@/components/ui/interactive-hover-button";
-import { ExpandableTabs } from "@/components/ui/expandable-tabs";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
+import { cn } from "@/lib/utils";
 
 interface Service {
   id: string;
@@ -333,7 +331,7 @@ function SettingsPage({
 
 // ── Main Dashboard ────────────────────────────────────────────
 export default function Dashboard() {
-  const [activeTab, setActiveTab] = useState<number | null>(0);
+  const [page, setPage] = useState<"dashboard" | "settings">("dashboard");
   const [services, setServices] = useState<Service[]>([]);
   const [pollingStates, setPollingStates] = useState<
     Record<string, "idle" | "polling" | "connected">
@@ -403,19 +401,11 @@ export default function Dashboard() {
     }
   };
 
-  const connectedCount = services.filter((s) => s.connected).length;
+  const linkedServices = services.filter((s) => s.connected);
   const acknowledgedCount = changes.filter((c) => c.acknowledged).length;
   const displayedChanges = filterService
     ? changes.filter((c) => c.service === filterService)
     : changes;
-
-  const tabs = [
-    { title: "Dashboard", icon: LayoutDashboard },
-    { title: "Alerts", icon: Bell },
-    { type: "separator" as const },
-    { title: "Settings", icon: Settings },
-    { title: "Help", icon: HelpCircle },
-  ];
 
   return (
     <div className="min-h-screen bg-background">
@@ -425,28 +415,39 @@ export default function Dashboard() {
           <div className="flex items-center gap-3">
             <Shield className="h-6 w-6 text-primary" />
             <span className="text-lg font-semibold">DriftGuard</span>
-            <span className="text-sm text-muted-foreground">
-              SaaS Config Monitor
-            </span>
           </div>
-          <ExpandableTabs
-            tabs={tabs}
-            className="border-border"
-            onChange={(index) => {
-              if (index === null) return;
-              const tab = tabs[index];
-              if (tab.type === "separator") return;
-              const title = (tab as { title: string }).title;
-              if (title === "Settings") setActiveTab(3);
-              else if (title === "Dashboard" || title === "Alerts" || title === "Help") setActiveTab(0);
-            }}
-          />
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => setPage("dashboard")}
+              className={cn(
+                "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors",
+                page === "dashboard"
+                  ? "bg-muted text-foreground"
+                  : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+              )}
+            >
+              <LayoutDashboard className="h-4 w-4" />
+              Dashboard
+            </button>
+            <button
+              onClick={() => setPage("settings")}
+              className={cn(
+                "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors",
+                page === "settings"
+                  ? "bg-muted text-foreground"
+                  : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+              )}
+            >
+              <Settings className="h-4 w-4" />
+              Settings
+            </button>
+          </div>
         </div>
       </nav>
 
       {/* Content */}
       <main className="mx-auto max-w-7xl px-6 py-8">
-        {activeTab === 3 /* Settings */ ? (
+        {page === "settings" ? (
           <SettingsPage services={services} onSave={handleSaveApiKey} />
         ) : (
           <>
@@ -459,15 +460,18 @@ export default function Dashboard() {
             </div>
 
             {/* Service Cards — only show linked services */}
-            {connectedCount === 0 ? (
+            {linkedServices.length === 0 ? (
               <div className="rounded-xl border border-border bg-card p-12 text-center mb-12">
                 <Shield className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
-                <h3 className="text-lg font-semibold mb-2">No services linked yet</h3>
+                <h3 className="text-lg font-semibold mb-2">
+                  No services linked yet
+                </h3>
                 <p className="text-muted-foreground mb-6 max-w-md mx-auto">
-                  Link your SaaS accounts in Settings to start monitoring their configuration for unexpected changes.
+                  Link your SaaS accounts in Settings to start monitoring their
+                  configuration for unexpected changes.
                 </p>
                 <button
-                  onClick={() => setActiveTab(3)}
+                  onClick={() => setPage("settings")}
                   className="inline-flex items-center gap-2 rounded-lg bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
                 >
                   <Settings className="h-4 w-4" />
@@ -476,17 +480,15 @@ export default function Dashboard() {
               </div>
             ) : (
               <ul className="grid grid-cols-1 gap-4 md:grid-cols-3 lg:gap-6 mb-12">
-                {services
-                  .filter((s) => s.connected)
-                  .map((service) => (
-                    <ServiceCard
-                      key={service.id}
-                      service={service}
-                      status={pollingStates[service.id] || "idle"}
-                      onPoll={handlePoll}
-                      onViewChanges={handleViewChanges}
-                    />
-                  ))}
+                {linkedServices.map((service) => (
+                  <ServiceCard
+                    key={service.id}
+                    service={service}
+                    status={pollingStates[service.id] || "idle"}
+                    onPoll={handlePoll}
+                    onViewChanges={handleViewChanges}
+                  />
+                ))}
               </ul>
             )}
 
@@ -497,7 +499,9 @@ export default function Dashboard() {
                   <Activity className="h-4 w-4" />
                   <span className="text-xs">Linked</span>
                 </div>
-                <span className="text-2xl font-bold">{connectedCount}</span>
+                <span className="text-2xl font-bold">
+                  {linkedServices.length}
+                </span>
               </div>
               <div className="rounded-xl border border-border bg-card p-4">
                 <div className="flex items-center gap-2 text-muted-foreground mb-1">
@@ -512,7 +516,7 @@ export default function Dashboard() {
                   <span className="text-xs">Healthy</span>
                 </div>
                 <span className="text-2xl font-bold text-emerald-400">
-                  {connectedCount > 0
+                  {changes.length > 0
                     ? `${acknowledgedCount}/${changes.length}`
                     : "—"}
                 </span>
@@ -524,7 +528,10 @@ export default function Dashboard() {
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-lg font-semibold">
                   {filterService
-                    ? `${services.find((s) => s.id === filterService)?.name || filterService} Changes`
+                    ? `${
+                        services.find((s) => s.id === filterService)?.name ||
+                        filterService
+                      } Changes`
                     : "Recent Changes"}
                 </h2>
                 {filterService && (
