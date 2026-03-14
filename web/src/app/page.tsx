@@ -51,16 +51,16 @@ function ServiceCard({
 }) {
   return (
     <li className="min-h-[14rem] list-none">
-      <div className="relative h-full rounded-xl">
+      <div className="relative h-full rounded-2xl">
         <GlowingEffect
           spread={40}
           glow
           disabled={false}
           proximity={64}
           inactiveZone={0.01}
-          borderWidth={2}
+          borderWidth={1.5}
         />
-        <div className="relative flex h-full flex-col justify-between gap-6 overflow-hidden rounded-xl border-[0.75px] border-border bg-card p-6 shadow-sm">
+        <div className="relative flex h-full flex-col justify-between gap-6 overflow-hidden rounded-2xl border border-border bg-card p-6 shadow-sm">
           <div className="relative flex flex-1 flex-col justify-between gap-4">
             <div className="flex items-center justify-between">
               <div className="w-fit rounded-lg border-[0.75px] border-border bg-muted p-2">
