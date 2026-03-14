@@ -1,27 +1,23 @@
 import { NextRequest, NextResponse } from "next/server";
-import { services } from "@/lib/store";
+import { getAuthUser } from "@/lib/auth";
+import { updateServiceApiKey } from "@/lib/polling";
 
 export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const { id } = await params;
-  const svc = services.find((s) => s.id === id);
-
-  if (!svc) {
-    return NextResponse.json({ error: "Service not found" }, { status: 404 });
+  const auth = await getAuthUser();
+  if (!auth) {
+    return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   }
 
+  const { id } = await params;
   const body = await req.json();
 
   if (body.api_key !== undefined) {
-    svc.api_key = body.api_key;
-    svc.connected = body.api_key.length > 0;
+    const updated = updateServiceApiKey(auth.userId, id, body.api_key);
+    return NextResponse.json(updated);
   }
 
-  if (body.enabled !== undefined) {
-    svc.enabled = body.enabled;
-  }
-
-  return NextResponse.json(svc);
+  return NextResponse.json({ error: "No changes" }, { status: 400 });
 }

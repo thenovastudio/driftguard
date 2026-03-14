@@ -1,8 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
-import { changes } from "@/lib/store";
+import { getAuthUser } from "@/lib/auth";
+import { getChangesForUser } from "@/lib/polling";
 
 export async function GET(req: NextRequest) {
+  const auth = await getAuthUser();
+  if (!auth) {
+    return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+  }
+
   const { searchParams } = new URL(req.url);
   const limit = parseInt(searchParams.get("limit") || "20");
-  return NextResponse.json(changes.slice(0, limit));
+  const serviceId = searchParams.get("service") || undefined;
+
+  return NextResponse.json(getChangesForUser(auth.userId, limit, serviceId));
 }

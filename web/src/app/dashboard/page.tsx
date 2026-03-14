@@ -22,6 +22,9 @@ import {
   Phone,
   BarChart3,
   Hash,
+  LogOut,
+  Crown,
+  Clock,
 } from "lucide-react";
 import { GlowingEffect } from "@/components/ui/glowing-effect";
 import { InteractiveHoverButton } from "@/components/ui/interactive-hover-button";
@@ -39,12 +42,29 @@ interface Service {
 
 interface Change {
   id: number;
+  service_id: string;
   service: string;
-  diff: Record<string, unknown>;
+  diff: string | Record<string, unknown>;
   created_at: string;
-  acknowledged: boolean;
+  acknowledged: number;
 }
 
+interface User {
+  id: number;
+  email: string;
+  name: string;
+  plan: string;
+  trial_ends_at: string | null;
+  plan_details: {
+    name: string;
+    maxServices: number;
+    pollIntervalMs: number;
+    historyDays: number;
+    features: string[];
+  };
+}
+
+// ── Service metadata ─────────────────────────────────────────
 const SERVICE_ICONS: Record<string, React.ReactNode> = {
   stripe: <CreditCard className="h-4 w-4" />,
   vercel: <Globe className="h-4 w-4" />,
@@ -62,95 +82,112 @@ const SERVICE_DOCS: Record<string, string> = {
   sendgrid: "https://app.sendgrid.com/settings/api_keys",
   github: "https://github.com/settings/tokens",
   cloudflare: "https://dash.cloudflare.com/profile/api-tokens",
-  twilio: "https://console.twilio.com/account/voice/settings",
+  twilio: "https://console.twilio.com",
   datadog: "https://app.datadoghq.com/organization-settings/api-keys",
   slack: "https://api.slack.com/apps",
 };
 
-const SERVICE_DESCRIPTIONS: Record<string, string> = {
-  stripe: "Monitor payment config, webhooks, and billing settings",
-  vercel: "Monitor deployment settings, regions, and build config",
-  sendgrid: "Monitor email templates, sender config, and tracking",
-  github: "Monitor branch protection, review settings, and access",
-  cloudflare: "Monitor SSL/TLS, cache rules, and DNS config",
-  twilio: "Monitor voice/SMS webhooks and recording settings",
-  datadog: "Monitor retention, alert channels, and sampling rates",
-  slack: "Monitor webhook URLs, channels, and bot settings",
-};
+interface SetupGuide {
+  title: string;
+  permissions: string;
+  steps: string[];
+}
 
-const SERVICE_SETUP_GUIDE: Record<string, { title: string; steps: string[] }> = {
+const SERVICE_SETUP_GUIDE: Record<string, SetupGuide> = {
   stripe: {
     title: "How to get your Stripe API key",
+    permissions: "Read-only config access (no payment processing)",
     steps: [
-      'Go to <a href="https://dashboard.stripe.com/apikeys" target="_blank" class="text-primary hover:underline">Stripe Dashboard → API Keys</a>',
-      'Under "Standard keys", click "Reveal" next to the <strong>Secret key</strong> (starts with <code class="bg-muted px-1 rounded text-xs">sk_live_</code> or <code class="bg-muted px-1 rounded text-xs">sk_test_</code>)',
-      "Copy the key and paste it below",
+      'Go to <a href="https://dashboard.stripe.com/apikeys" target="_blank" rel="noopener" class="text-primary hover:underline">Stripe → Developers → API Keys</a>',
+      'Find the <strong>Secret key</strong> under "Standard keys" (starts with <code class="bg-muted px-1 rounded text-xs">sk_live_</code> or <code class="bg-muted px-1 rounded text-xs">sk_test_</code>)',
+      'Click <strong>"Reveal"</strong> to show it',
+      "DriftGuard reads config only — cannot process payments or access customer data",
     ],
   },
   vercel: {
     title: "How to get your Vercel API token",
+    permissions: "Read access to project & deployment settings",
     steps: [
-      'Go to <a href="https://vercel.com/account/settings/tokens" target="_blank" class="text-primary hover:underline">Vercel → Settings → Tokens</a>',
-      "Click <strong>Create</strong> and give it a name like &ldquo;DriftGuard&rdquo;",
-      "Set scope to your team/account and leave expiration as needed",
-      "Copy the token immediately (it won't be shown again)",
+      'Go to <a href="https://vercel.com/account/settings/tokens" target="_blank" rel="noopener" class="text-primary hover:underline">Vercel → Account → Tokens</a>',
+      'Click <strong>Create</strong> → name it "DriftGuard"',
+      "Set scope to your account or team",
+      "Leave expiration as needed (1 year recommended)",
+      "Copy immediately — not shown again",
     ],
   },
   sendgrid: {
     title: "How to get your SendGrid API key",
+    permissions: "Restricted: Mail Send + Mail Settings + Tracking (read-only)",
     steps: [
-      'Go to <a href="https://app.sendgrid.com/settings/api_keys" target="_blank" class="text-primary hover:underline">SendGrid → Settings → API Keys</a>',
-      "Click <strong>Create API Key</strong>",
-      "Choose <strong>Restricted Access</strong> and enable at least <strong>Mail Send</strong> and <strong>Email Activity</strong> read permissions",
+      'Go to <a href="https://app.sendgrid.com/settings/api_keys" target="_blank" rel="noopener" class="text-primary hover:underline">SendGrid → Settings → API Keys</a>',
+      'Click <strong>Create API Key</strong> → choose <strong>Restricted Access</strong>',
+      "Enable these scopes (read-only):",
+      '  • <code class="bg-muted px-1 rounded text-xs">Mail Send</code> → Read',
+      '  • <code class="bg-muted px-1 rounded text-xs">Mail Settings</code> → Read',
+      '  • <code class="bg-muted px-1 rounded text-xs">Tracking Settings</code> → Read',
       "Copy the key (starts with <code class=\"bg-muted px-1 rounded text-xs\">SG.</code>)",
     ],
   },
   github: {
     title: "How to get your GitHub Personal Access Token",
+    permissions: "Read-only: repo status, branch protection, org settings",
     steps: [
-      'Go to <a href="https://github.com/settings/tokens" target="_blank" class="text-primary hover:underline">GitHub → Settings → Developer settings → Personal access tokens</a>',
-      "Click <strong>Generate new token (classic)</strong>",
-      "Give it a note like &ldquo;DriftGuard&rdquo;",
-      "Select scopes: <code class=\"bg-muted px-1 rounded text-xs\">repo</code> (for private repos) or <code class=\"bg-muted px-1 rounded text-xs\">public_repo</code> (public only), plus <code class=\"bg-muted px-1 rounded text-xs\">admin:org</code> for org settings",
+      'Go to <a href="https://github.com/settings/tokens" target="_blank" rel="noopener" class="text-primary hover:underline">GitHub → Settings → Developer → Tokens (classic)</a>',
+      'Click <strong>Generate new token (classic)</strong>',
+      'Add note "DriftGuard", set expiration (90 days recommended)',
+      "Select <strong>read-only</strong> scopes:",
+      '  • <code class="bg-muted px-1 rounded text-xs">repo</code> → Status (branch protection)',
+      '  • <code class="bg-muted px-1 rounded text-xs">admin:org</code> → Read (org settings)',
+      '  • <code class="bg-muted px-1 rounded text-xs">admin:repo_hook</code> → Read (webhooks)',
       "Copy the token (starts with <code class=\"bg-muted px-1 rounded text-xs\">ghp_</code>)",
     ],
   },
   cloudflare: {
     title: "How to get your Cloudflare API token",
+    permissions: "Read-only: Zone settings, SSL/TLS config",
     steps: [
-      'Go to <a href="https://dash.cloudflare.com/profile/api-tokens" target="_blank" class="text-primary hover:underline">Cloudflare → Profile → API Tokens</a>',
-      "Click <strong>Create Token</strong>",
-      "Use the <strong>Edit zone DNS</strong> template or create a custom token with <strong>Zone Settings:Edit</strong> permissions",
-      "Select the zones you want to monitor",
-      "Copy the token after creation",
+      'Go to <a href="https://dash.cloudflare.com/profile/api-tokens" target="_blank" rel="noopener" class="text-primary hover:underline">Cloudflare → Profile → API Tokens</a>',
+      'Click <strong>Create Token</strong> → use <strong>Custom token</strong>',
+      "Set permissions:",
+      '  • <code class="bg-muted px-1 rounded text-xs">Zone → Zone Settings → Read</code>',
+      '  • <code class="bg-muted px-1 rounded text-xs">Zone → SSL and Certificates → Read</code>',
+      "Under Zone Resources, select zones to monitor",
+      "Copy the token",
     ],
   },
   twilio: {
-    title: "How to get your Twilio API credentials",
+    title: "How to get your Twilio credentials",
+    permissions: "Read-only account config (no SMS/call access)",
     steps: [
-      'Go to <a href="https://console.twilio.com" target="_blank" class="text-primary hover:underline">Twilio Console</a>',
-      "Your <strong>Account SID</strong> and <strong>Auth Token</strong> are on the main dashboard",
-      "Copy the Auth Token (you may need to click to reveal it)",
-      "For a more restricted key, go to <strong>API Keys & Tokens</strong> and create a new Standard API Key",
+      'Go to <a href="https://console.twilio.com" target="_blank" rel="noopener" class="text-primary hover:underline">Twilio Console</a>',
+      "Find <strong>Account SID</strong> and <strong>Auth Token</strong> on the dashboard",
+      "DriftGuard reads config only — cannot send SMS/calls",
+      "For better security, create a <strong>Restricted API Key</strong> at API Keys & Tokens:",
+      '  • <code class="bg-muted px-1 rounded text-xs">Accounts → Read</code>',
+      '  • <code class="bg-muted px-1 rounded text-xs">Voice → Read</code>',
+      '  • <code class="bg-muted px-1 rounded text-xs">Messaging → Read</code>',
     ],
   },
   datadog: {
     title: "How to get your Datadog API key",
+    permissions: "Read-only dashboard & alert config",
     steps: [
-      'Go to <a href="https://app.datadoghq.com/organization-settings/api-keys" target="_blank" class="text-primary hover:underline">Datadog → Organization Settings → API Keys</a>',
-      "Click <strong>New Key</strong>",
-      "Give it a name like &ldquo;DriftGuard&rdquo;",
-      "Copy the key (32-character hex string)",
+      'Go to <a href="https://app.datadoghq.com/organization-settings/api-keys" target="_blank" rel="noopener" class="text-primary hover:underline">Datadog → Organization Settings → API Keys</a>',
+      'Click <strong>New Key</strong> → name it "DriftGuard"',
+      "Copy the 32-character key",
+      "DriftGuard reads alert/dashboard configs only — not your monitoring data",
     ],
   },
   slack: {
-    title: "How to set up your Slack app",
+    title: "How to set up Slack alerts",
+    permissions: "Incoming Webhook (post alerts to a channel)",
     steps: [
-      'Go to <a href="https://api.slack.com/apps" target="_blank" class="text-primary hover:underline">Slack API → Your Apps</a>',
-      "Click <strong>Create New App</strong> → From scratch",
-      "Add the <strong>Incoming Webhooks</strong> feature and activate it",
-      "Click <strong>Add New Webhook to Workspace</strong> and select your channel",
-      "Copy the Webhook URL (starts with <code class=\"bg-muted px-1 rounded text-xs\">https://hooks.slack.com/</code>)",
+      'Go to <a href="https://api.slack.com/apps" target="_blank" rel="noopener" class="text-primary hover:underline">Slack API → Your Apps</a>',
+      'Click <strong>Create New App</strong> → From scratch → name it "DriftGuard"',
+      'Go to <strong>Incoming Webhooks</strong> → toggle ON',
+      'Click <strong>Add New Webhook to Workspace</strong> → select alert channel',
+      "Copy the Webhook URL",
+      "Note: This is for receiving alerts, not monitoring Slack config",
     ],
   },
 };
@@ -209,13 +246,13 @@ function ServiceCard({
             </div>
 
             <div className="space-y-3">
-              <h3 className="pt-0.5 text-xl leading-[1.375rem] font-semibold tracking-[-0.04em] md:text-2xl md:leading-[1.875rem] text-balance">
+              <h3 className="pt-0.5 text-xl font-semibold tracking-[-0.04em] md:text-2xl text-balance">
                 {service.name}
               </h3>
-              <p className="text-sm leading-[1.125rem] md:text-base md:leading-[1.375rem] text-muted-foreground">
+              <p className="text-sm text-muted-foreground">
                 {service.last_polled_at
                   ? `Last polled ${new Date(service.last_polled_at).toLocaleTimeString()}`
-                  : "Not polled yet — click below to start"}
+                  : "Not polled yet"}
               </p>
             </div>
 
@@ -250,12 +287,20 @@ function ServiceCard({
 
 // ── Change Row ────────────────────────────────────────────────
 function ChangeRow({ change }: { change: Change }) {
+  let diffObj: Record<string, unknown> = {};
+  try {
+    diffObj =
+      typeof change.diff === "string" ? JSON.parse(change.diff) : change.diff;
+  } catch {
+    diffObj = {};
+  }
+
   return (
     <div className="flex items-start justify-between rounded-xl border-[0.75px] border-border bg-card p-4">
       <div className="flex-1">
         <div className="flex items-center gap-2 mb-2">
           <span className="font-semibold text-sm capitalize">
-            {change.service}
+            {change.service || change.service_id}
           </span>
           <span className="text-xs text-muted-foreground">
             {new Date(change.created_at).toLocaleString()}
@@ -267,7 +312,7 @@ function ChangeRow({ change }: { change: Change }) {
           )}
         </div>
         <pre className="text-xs text-muted-foreground bg-muted rounded-lg p-3 overflow-auto max-h-32">
-          {JSON.stringify(change.diff, null, 2)}
+          {JSON.stringify(diffObj, null, 2)}
         </pre>
       </div>
     </div>
@@ -277,9 +322,11 @@ function ChangeRow({ change }: { change: Change }) {
 // ── Settings Page ─────────────────────────────────────────────
 function SettingsPage({
   services,
+  user,
   onSave,
 }: {
   services: Service[];
+  user: User | null;
   onSave: (serviceId: string, apiKey: string) => void;
 }) {
   const [keys, setKeys] = useState<Record<string, string>>({});
@@ -308,14 +355,49 @@ function SettingsPage({
         <div>
           <h1 className="text-2xl font-bold mb-2">Settings</h1>
           <p className="text-muted-foreground">
-            Connect your SaaS accounts to start monitoring configuration changes
+            Connect your SaaS accounts to monitor their configuration
           </p>
         </div>
-        <div className="flex items-center gap-3">
-          <span className="text-sm text-muted-foreground">Theme</span>
+        <div className="flex items-center gap-4">
+          {user && (
+            <div className="text-right">
+              <div className="flex items-center gap-2 text-sm font-medium">
+                <Crown className="h-4 w-4 text-amber-400" />
+                {user.plan_details.name} Plan
+              </div>
+              {user.trial_ends_at && user.plan === "trial" && (
+                <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                  <Clock className="h-3 w-3" />
+                  Trial ends {new Date(user.trial_ends_at).toLocaleDateString()}
+                </div>
+              )}
+            </div>
+          )}
           <ThemeToggle />
         </div>
       </div>
+
+      {/* Plan limits banner */}
+      {user && (
+        <div className="rounded-lg border border-border bg-muted/30 p-4 mb-6">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4 text-sm">
+              <span className="text-muted-foreground">
+                Services: <strong className="text-foreground">{services.filter(s => s.connected).length}</strong> / {user.plan_details.maxServices === 999 ? "∞" : user.plan_details.maxServices}
+              </span>
+              <span className="text-muted-foreground">
+                Poll interval: <strong className="text-foreground">{user.plan_details.pollIntervalMs / 60000}min</strong>
+              </span>
+              <span className="text-muted-foreground">
+                History: <strong className="text-foreground">{user.plan_details.historyDays}d</strong>
+              </span>
+            </div>
+            <a href="/dashboard#pricing" className="text-xs text-primary hover:underline">
+              Upgrade plan
+            </a>
+          </div>
+        </div>
+      )}
 
       <div className="space-y-6">
         {services.map((service) => (
@@ -326,9 +408,7 @@ function SettingsPage({
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-3">
                 <div className="w-fit rounded-lg border-[0.75px] border-border bg-muted p-2">
-                  {SERVICE_ICONS[service.id] || (
-                    <Activity className="h-4 w-4" />
-                  )}
+                  {SERVICE_ICONS[service.id] || <Activity className="h-4 w-4" />}
                 </div>
                 <div>
                   <h3 className="font-semibold">{service.name}</h3>
@@ -357,16 +437,17 @@ function SettingsPage({
               </a>
             </div>
 
-            <p className="text-sm text-muted-foreground mb-4">
-              {SERVICE_DESCRIPTIONS[service.id]}
-            </p>
-
-            {/* Setup guide banner */}
+            {/* Setup guide */}
             {SERVICE_SETUP_GUIDE[service.id] && (
               <div className="rounded-lg bg-muted/50 border border-border p-4 mb-4">
-                <p className="text-sm font-medium mb-2">
-                  {SERVICE_SETUP_GUIDE[service.id].title}
-                </p>
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-sm font-medium">
+                    {SERVICE_SETUP_GUIDE[service.id].title}
+                  </p>
+                  <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded">
+                    {SERVICE_SETUP_GUIDE[service.id].permissions}
+                  </span>
+                </div>
                 <ol className="space-y-1.5">
                   {SERVICE_SETUP_GUIDE[service.id].steps.map((step, i) => (
                     <li
@@ -383,6 +464,7 @@ function SettingsPage({
               </div>
             )}
 
+            {/* API key input */}
             <div className="flex items-center gap-3">
               <div className="relative flex-1">
                 <Key className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -445,6 +527,7 @@ function SettingsPage({
 // ── Main Dashboard ────────────────────────────────────────────
 export default function Dashboard() {
   const [page, setPage] = useState<"dashboard" | "settings">("dashboard");
+  const [user, setUser] = useState<User | null>(null);
   const [services, setServices] = useState<Service[]>([]);
   const [pollingStates, setPollingStates] = useState<
     Record<string, "idle" | "polling" | "connected">
@@ -456,6 +539,23 @@ export default function Dashboard() {
     service: string;
     count: number;
   } | null>(null);
+  const [authChecked, setAuthChecked] = useState(false);
+
+  // Check auth on mount
+  useEffect(() => {
+    fetch("/api/auth/me")
+      .then((r) => {
+        if (!r.ok) throw new Error("Not authed");
+        return r.json();
+      })
+      .then((data) => {
+        setUser(data.user);
+        setAuthChecked(true);
+      })
+      .catch(() => {
+        window.location.href = "/login";
+      });
+  }, []);
 
   const fetchServices = useCallback(() => {
     fetch("/api/services")
@@ -465,7 +565,11 @@ export default function Dashboard() {
           setServices(data);
           const states: Record<string, "idle" | "polling" | "connected"> = {};
           data.forEach((s: Service) => {
-            states[s.id] = s.last_polled_at ? "connected" : "idle";
+            states[s.id] = s.connected
+              ? s.last_polled_at
+                ? "connected"
+                : "idle"
+              : "idle";
           });
           setPollingStates(states);
         }
@@ -484,9 +588,10 @@ export default function Dashboard() {
   }, []);
 
   useEffect(() => {
+    if (!authChecked) return;
     fetchServices();
     fetchChanges();
-  }, [fetchServices, fetchChanges]);
+  }, [authChecked, fetchServices, fetchChanges]);
 
   const handlePoll = async (serviceId: string) => {
     setPollingStates((prev) => ({ ...prev, [serviceId]: "polling" }));
@@ -496,13 +601,21 @@ export default function Dashboard() {
         method: "POST",
       });
       const data = await res.json();
+
+      if (!res.ok) {
+        // Show error (rate limit, not linked, etc.)
+        setPollResult({ service: serviceId, count: -1 });
+        setTimeout(() => setPollResult(null), 5000);
+        setPollingStates((prev) => ({ ...prev, [serviceId]: "connected" }));
+        return;
+      }
+
       setPollingStates((prev) => ({ ...prev, [serviceId]: "connected" }));
       setPollResult({
         service: serviceId,
         count: data.changesGenerated || 0,
       });
       setTimeout(() => setPollResult(null), 5000);
-      // Auto-filter changes to show this service's results
       setFilterService(serviceId);
       fetchServices();
       fetchChanges();
@@ -528,10 +641,25 @@ export default function Dashboard() {
     }
   };
 
+  const handleLogout = async () => {
+    await fetch("/api/auth/logout", { method: "POST" });
+    window.location.href = "/login";
+  };
+
+  if (!authChecked) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <RefreshCw className="h-6 w-6 text-muted-foreground animate-spin" />
+      </div>
+    );
+  }
+
   const linkedServices = services.filter((s) => s.connected);
-  const acknowledgedCount = changes.filter((c) => c.acknowledged).length;
+  const acknowledgedCount = changes.filter(
+    (c) => c.acknowledged === 1
+  ).length;
   const displayedChanges = filterService
-    ? changes.filter((c) => c.service === filterService)
+    ? changes.filter((c) => c.service_id === filterService)
     : changes;
 
   return (
@@ -545,31 +673,44 @@ export default function Dashboard() {
               <span className="text-lg font-semibold">DriftGuard</span>
             </a>
           </div>
-          <div className="flex items-center gap-1">
-            <button
-              onClick={() => setPage("dashboard")}
-              className={cn(
-                "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors",
-                page === "dashboard"
-                  ? "bg-muted text-foreground"
-                  : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
-              )}
-            >
-              <LayoutDashboard className="h-4 w-4" />
-              Dashboard
-            </button>
-            <button
-              onClick={() => setPage("settings")}
-              className={cn(
-                "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors",
-                page === "settings"
-                  ? "bg-muted text-foreground"
-                  : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
-              )}
-            >
-              <Settings className="h-4 w-4" />
-              Settings
-            </button>
+          <div className="flex items-center gap-3">
+            {user && (
+              <span className="text-xs text-muted-foreground hidden sm:block">
+                {user.email}
+              </span>
+            )}
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => setPage("dashboard")}
+                className={cn(
+                  "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors",
+                  page === "dashboard"
+                    ? "bg-muted text-foreground"
+                    : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                )}
+              >
+                <LayoutDashboard className="h-4 w-4" />
+                Dashboard
+              </button>
+              <button
+                onClick={() => setPage("settings")}
+                className={cn(
+                  "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors",
+                  page === "settings"
+                    ? "bg-muted text-foreground"
+                    : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                )}
+              >
+                <Settings className="h-4 w-4" />
+                Settings
+              </button>
+              <button
+                onClick={handleLogout}
+                className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-muted-foreground hover:text-destructive transition-colors"
+              >
+                <LogOut className="h-4 w-4" />
+              </button>
+            </div>
           </div>
         </div>
       </nav>
@@ -577,7 +718,11 @@ export default function Dashboard() {
       {/* Content */}
       <main className="mx-auto max-w-7xl px-6 py-8">
         {page === "settings" ? (
-          <SettingsPage services={services} onSave={handleSaveApiKey} />
+          <SettingsPage
+            services={services}
+            user={user}
+            onSave={handleSaveApiKey}
+          />
         ) : (
           <>
             {/* Poll result toast */}
@@ -587,6 +732,8 @@ export default function Dashboard() {
                   "mb-6 rounded-lg border px-4 py-3 text-sm flex items-center justify-between gap-2",
                   pollResult.count > 0
                     ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-400"
+                    : pollResult.count === -1
+                    ? "border-destructive/30 bg-destructive/10 text-destructive"
                     : "border-border bg-muted/50 text-muted-foreground"
                 )}
               >
@@ -601,7 +748,9 @@ export default function Dashboard() {
                     polled —{" "}
                     {pollResult.count > 0
                       ? `${pollResult.count} change${pollResult.count > 1 ? "s" : ""} detected`
-                      : "no changes detected (poll again — results are randomized for demo)"}
+                      : pollResult.count === -1
+                      ? "error polling — check if service is linked"
+                      : "no changes detected (poll again — randomized for demo)"}
                   </span>
                 </div>
                 {pollResult.count > 0 && (
@@ -610,7 +759,9 @@ export default function Dashboard() {
                     className="text-xs underline hover:no-underline shrink-0"
                     onClick={(e) => {
                       e.preventDefault();
-                      document.getElementById("changes")?.scrollIntoView({ behavior: "smooth" });
+                      document
+                        .getElementById("changes")
+                        ?.scrollIntoView({ behavior: "smooth" });
                     }}
                   >
                     View changes ↓
@@ -621,13 +772,44 @@ export default function Dashboard() {
 
             {/* Header */}
             <div className="mb-8">
-              <h1 className="text-2xl font-bold mb-2">Dashboard</h1>
-              <p className="text-muted-foreground">
-                Monitor your SaaS configuration for unexpected changes
-              </p>
+              <div className="flex items-center justify-between">
+                <div>
+                  <h1 className="text-2xl font-bold mb-2">Dashboard</h1>
+                  <p className="text-muted-foreground">
+                    Monitor your SaaS configuration for unexpected changes
+                  </p>
+                </div>
+                {user && (
+                  <div className="text-right">
+                    <div className="flex items-center gap-2 text-sm">
+                      <Crown className="h-4 w-4 text-amber-400" />
+                      <span className="font-medium">
+                        {user.plan_details.name}
+                      </span>
+                      {user.plan === "trial" && user.trial_ends_at && (
+                        <span className="text-xs text-muted-foreground">
+                          (trial ends{" "}
+                          {new Date(
+                            user.trial_ends_at
+                          ).toLocaleDateString()}
+                          )
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      {linkedServices.length}/
+                      {user.plan_details.maxServices === 999
+                        ? "∞"
+                        : user.plan_details.maxServices}{" "}
+                      services • {user.plan_details.pollIntervalMs / 60000}
+                      min polling
+                    </p>
+                  </div>
+                )}
+              </div>
             </div>
 
-            {/* Service Cards — only show linked services */}
+            {/* Service Cards */}
             {linkedServices.length === 0 ? (
               <div className="rounded-xl border border-border bg-card p-12 text-center mb-12">
                 <Shield className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
@@ -653,7 +835,9 @@ export default function Dashboard() {
                     key={service.id}
                     service={service}
                     status={pollingStates[service.id] || "idle"}
-                    changesCount={changes.filter((c) => c.service === service.id).length}
+                    changesCount={
+                      changes.filter((c) => c.service_id === service.id).length
+                    }
                     isFiltered={filterService === service.id}
                     onPoll={handlePoll}
                     onViewChanges={handleViewChanges}

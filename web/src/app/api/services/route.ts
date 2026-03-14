@@ -1,6 +1,11 @@
 import { NextResponse } from "next/server";
-import { services } from "@/lib/store";
+import { getAuthUser } from "@/lib/auth";
+import { getServicesForUser } from "@/lib/polling";
 
 export async function GET() {
-  return NextResponse.json(services);
+  const auth = await getAuthUser();
+  if (!auth) {
+    return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+  }
+  return NextResponse.json(getServicesForUser(auth.userId));
 }
