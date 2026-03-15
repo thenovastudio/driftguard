@@ -37,15 +37,27 @@ export async function POST(req: Request) {
       const userId = session.client_reference_id as string;
       const subscriptionId = session.subscription as string;
 
-      if (userId) {
+      if (userId && subscriptionId) {
         // Stripe subscriptions start as 'trialing' if trial_period_days is configured
-        // We give them Pro tier immediately upon checkout session success
+        // We give them the appropriate tier immediately upon checkout session success
         const client = await clerkClient();
+        
+        let planKey = "plus";
+        try {
+          const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+          const priceId = subscription.items.data[0]?.price.id;
+          
+          if (priceId === process.env.NEXT_PUBLIC_STRIPE_PRO_PRICE_ID) planKey = "pro";
+          else if (priceId === process.env.NEXT_PUBLIC_STRIPE_BUSINESS_PRICE_ID) planKey = "business";
+        } catch (e) {
+          console.error("Failed to fetch subscription for price ID, defaulting to plus:", e);
+        }
+
         await client.users.updateUserMetadata(userId, {
           publicMetadata: {
             stripeSubscriptionId: subscriptionId,
             stripeSubscriptionStatus: "trialing", 
-            stripePlanKey: "pro" 
+            stripePlanKey: planKey 
           }
         });
       }

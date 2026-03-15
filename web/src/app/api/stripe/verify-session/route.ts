@@ -26,11 +26,24 @@ export async function GET(req: Request) {
 
     if (session.payment_status === "paid" || session.status === "complete") {
         const client = await clerkClient();
+        let planKey = "plus";
+        try {
+          if (session.subscription) {
+              const subscription = await stripe.subscriptions.retrieve(session.subscription as string);
+              const priceId = subscription.items.data[0]?.price.id;
+              
+              if (priceId === process.env.NEXT_PUBLIC_STRIPE_PRO_PRICE_ID) planKey = "pro";
+              else if (priceId === process.env.NEXT_PUBLIC_STRIPE_BUSINESS_PRICE_ID) planKey = "business";
+          }
+        } catch (e) {
+          console.error("Failed to fetch subscription for price ID in verify:", e);
+        }
+
         await client.users.updateUserMetadata(userId, {
           publicMetadata: {
             stripeSubscriptionId: session.subscription as string,
             stripeSubscriptionStatus: "trialing", 
-            stripePlanKey: "pro" 
+            stripePlanKey: planKey 
           }
         });
         return NextResponse.json({ success: true, verified: true });

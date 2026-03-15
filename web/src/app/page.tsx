@@ -448,14 +448,14 @@ function PricingSection({ isSignedIn }: { isSignedIn: boolean }) {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-0 border-t border-l border-border bg-card">
-          {/* Free */}
+          {/* Plus */}
           <div className="border-r border-b border-border p-12 hover:bg-muted transition-colors">
-            <h3 className="text-xl font-bold tracking-widest uppercase mb-2">Level 1</h3>
+            <h3 className="text-xl font-bold tracking-widest uppercase mb-2">Level 1: Plus</h3>
             <p className="text-xs font-mono text-muted-foreground mb-8 uppercase tracking-widest">
               Standard Access
             </p>
             <div className="mb-10 font-mono">
-              <span className="text-6xl font-black text-foreground">$0</span>
+              <span className="text-6xl font-black text-foreground">$4.99</span>
             </div>
             <ul className="space-y-4 mb-12">
               {[
@@ -483,7 +483,7 @@ function PricingSection({ isSignedIn }: { isSignedIn: boolean }) {
             <div className="absolute top-0 right-0 bg-primary text-primary-foreground text-[10px] font-mono font-bold tracking-widest uppercase px-3 py-1">
               Recommended
             </div>
-            <h3 className="text-xl font-bold tracking-widest uppercase mb-2 text-primary">Level 2</h3>
+            <h3 className="text-xl font-bold tracking-widest uppercase mb-2 text-primary">Level 2: Pro</h3>
             <p className="text-xs font-mono text-muted-foreground mb-8 uppercase tracking-widest">
               Advanced Operations
             </p>
@@ -515,7 +515,7 @@ function PricingSection({ isSignedIn }: { isSignedIn: boolean }) {
 
           {/* Business */}
           <div className="border-r border-b border-border p-12 hover:bg-muted transition-colors">
-            <h3 className="text-xl font-bold tracking-widest uppercase mb-2">Level 3</h3>
+            <h3 className="text-xl font-bold tracking-widest uppercase mb-2">Level 3: Business</h3>
             <p className="text-xs font-mono text-muted-foreground mb-8 uppercase tracking-widest">
               Absolute Authority
             </p>

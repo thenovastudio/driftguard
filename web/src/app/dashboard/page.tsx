@@ -1079,11 +1079,12 @@ function SettingsPage({
 
   const PLANS_LIST = [
     {
-      key: "free",
-      name: "Free",
-      price: "$0",
+      key: "plus",
+      name: "Monitra Plus",
+      price: "$4.99",
       period: "/mo",
-      desc: "For side projects & testing",
+      desc: "For essential monitoring",
+      priceId: process.env.NEXT_PUBLIC_STRIPE_PLUS_PRICE_ID,
       features: [
         "3 services",
         "30-min polling",
@@ -1098,6 +1099,7 @@ function SettingsPage({
       period: "/mo",
       desc: "For growing teams",
       popular: true,
+      priceId: process.env.NEXT_PUBLIC_STRIPE_PRO_PRICE_ID,
       features: [
         "15 services",
         "5-min polling",
@@ -1113,6 +1115,7 @@ function SettingsPage({
       price: "$79",
       period: "/mo",
       desc: "For compliance-heavy orgs",
+      priceId: process.env.NEXT_PUBLIC_STRIPE_BUSINESS_PRICE_ID,
       features: [
         "Unlimited services",
         "1-min polling",
@@ -1249,21 +1252,24 @@ function SettingsPage({
                       <button
                         className="w-full rounded-lg bg-primary px-3 py-2 text-xs font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
                         onClick={() => {
-                          onCheckout();
+                          onCheckout(plan.priceId);
                         }}
                       >
-                        {user.plan === "free" && plan.key !== "free"
+                        {user.plan === "free" && plan.key === "plus"
+                          ? `Start Monitra ${plan.name}` :
+                         (user.plan === "free" || user.plan === "plus") && plan.key !== "free" && plan.key !== "plus"
                           ? `Start 14-day free trial`
                           : PLANS_LIST.findIndex(
                                 (p) =>
                                   p.key === user.plan ||
-                                  (user.plan === "trial" && p.key === "pro"),
+                                  (user.plan === "trial" && p.key === "pro") ||
+                                  (user.plan === "free" && p.key === "plus"),
                               ) >
                               PLANS_LIST.findIndex((p) => p.key === plan.key)
                             ? `Downgrade to ${plan.name}`
                             : `Upgrade to ${plan.name}`}
                       </button>
-                      {user.plan === "free" && plan.key !== "free" && (
+                      {(user.plan === "free" || user.plan === "plus") && plan.key !== "free" && plan.key !== "plus" && (
                         <p className="text-[10px] text-center text-muted-foreground leading-tight">
                           Requires credit card via Stripe.
                           <br />
@@ -1278,7 +1284,7 @@ function SettingsPage({
           </div>
 
           {/* Cancel subscription */}
-          {user.plan !== "free" && (
+          {(user.plan !== "free" && user.plan !== "plus") && (
             <div className="rounded-xl border border-border bg-card p-5">
               <div className="flex items-center justify-between">
                 <div>
@@ -1286,7 +1292,7 @@ function SettingsPage({
                     Cancel subscription
                   </h3>
                   <p className="text-xs text-muted-foreground">
-                    You&apos;ll be downgraded to the Free plan at the end of
+                    You&apos;ll be downgraded to Monitra Plus at the end of
                     your billing cycle.
                   </p>
                 </div>
@@ -1300,11 +1306,19 @@ function SettingsPage({
                 ) : (
                   <div className="flex items-center gap-2">
                     <button
-                      onClick={() => {
-                        // TODO: Call Stripe cancel subscription API
-                        alert(
-                          "Subscription cancellation would be processed via Stripe. Integration pending.",
-                        );
+                      onClick={async () => {
+                        try {
+                          const res = await fetch("/api/stripe/cancel", { method: "POST" });
+                          const data = await res.json();
+                          if (data.success) {
+                            alert("Subscription successfully set to cancel at period end.");
+                            window.location.reload();
+                          } else {
+                            alert(data.error || "Failed to cancel subscription");
+                          }
+                        } catch (e) {
+                          alert("Failed to cancel subscription.");
+                        }
                         setShowCancelConfirm(false);
                       }}
                       className="rounded-lg bg-destructive px-4 py-2 text-xs font-medium text-destructive-foreground hover:bg-destructive/90 transition-colors"
@@ -1984,8 +1998,8 @@ export default function Dashboard() {
 
   // Build user profile from Clerk
   const PLANS: Record<string, User["plan_details"]> = {
-    free: {
-      name: "Free",
+    plus: {
+      name: "Monitra Plus",
       maxServices: 3,
       pollIntervalMs: 30 * 60 * 1000,
       historyDays: 7,
@@ -2046,8 +2060,8 @@ export default function Dashboard() {
     (subscriptionStatus !== "active" && subscriptionStatus !== "trialing");
 
   const userPlanKey = requiresSubscription
-    ? "free"
-    : (clerkUser.publicMetadata?.stripePlanKey as string) || "trial";
+    ? "plus"
+    : (clerkUser.publicMetadata?.stripePlanKey as string) === "free" ? "plus" : (clerkUser.publicMetadata?.stripePlanKey as string) || "trial";
   const user: User = clerkUser
     ? {
         email: clerkUser.emailAddresses[0]?.emailAddress || "",
@@ -2056,13 +2070,13 @@ export default function Dashboard() {
           clerkUser.emailAddresses[0]?.emailAddress?.split("@")[0] ||
           "User",
         plan: userPlanKey,
-        plan_details: PLANS[userPlanKey] || PLANS.free,
+        plan_details: PLANS[userPlanKey] || PLANS.plus,
       }
     : {
         email: "",
         name: "",
-        plan: "free",
-        plan_details: PLANS.free,
+        plan: "plus",
+        plan_details: PLANS.plus,
       };
 
   const linkedServices = services.filter((s) => s.connected);
@@ -2096,7 +2110,7 @@ export default function Dashboard() {
                 You will not be charged during the 14-day trial period.
               </p>
               <button
-                onClick={() => handleCheckout()}
+                onClick={() => handleCheckout(process.env.NEXT_PUBLIC_STRIPE_PLUS_PRICE_ID)}
                 disabled={checkoutLoading}
                 className="w-full relative flex justify-center items-center bg-primary text-primary-foreground font-semibold py-3 rounded-lg hover:bg-primary/90 transition-colors uppercase tracking-widest text-sm disabled:opacity-50"
               >
