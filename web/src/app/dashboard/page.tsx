@@ -49,8 +49,8 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Sidebar, SidebarBody, SidebarLink, useSidebar } from "@/components/ui/sidebar";
 import { GlowingEffect } from "@/components/ui/glowing-effect";
 import { InteractiveHoverButton } from "@/components/ui/interactive-hover-button";
-import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { FlowButton } from "@/components/ui/flow-button";
+import { ExpandableTabs, TabItem } from "@/components/ui/expandable-tabs";
 import { cn } from "@/lib/utils";
 
 interface Service {
@@ -500,10 +500,12 @@ function SettingsPage({
   services,
   user,
   onSave,
+  onCheckout,
 }: {
   services: Service[];
   user: User | null;
   onSave: (serviceId: string, apiKey: string) => void;
+  onCheckout: (priceId: string) => void;
 }) {
   const [keys, setKeys] = useState<Record<string, string>>({});
   const [visible, setVisible] = useState<Record<string, boolean>>({});
@@ -533,22 +535,16 @@ function SettingsPage({
     { key: "business", name: "Business", price: "$79", period: "/mo", desc: "For compliance-heavy orgs", features: ["Unlimited services", "1-min polling", "1-year history", "All alert channels", "Unlimited team members", "SOC2 / HIPAA reports", "Priority support"] },
   ];
 
-  const menuItems = [
-    {
-      icon: CreditCard,
-      label: "Billing & Plan",
-      href: "#",
-      gradient: "radial-gradient(circle, rgba(59,130,246,0.15) 0%, rgba(37,99,235,0.06) 50%, rgba(29,78,216,0) 100%)",
-      iconColor: "text-blue-500",
-    },
-    {
-      icon: Shield,
-      label: "Linked Services",
-      href: "#",
-      gradient: "radial-gradient(circle, rgba(34,197,94,0.15) 0%, rgba(22,163,74,0.06) 50%, rgba(21,128,61,0) 100%)",
-      iconColor: "text-green-500",
-    },
+  const tabs: TabItem[] = [
+    { title: "Billing & Plan", icon: CreditCard },
+    { type: "separator" },
+    { title: "Linked Services", icon: Shield },
   ];
+
+  const handleTabChange = (index: number | null) => {
+    if (index === 0) setActiveTab("Billing & Plan");
+    if (index === 2) setActiveTab("Linked Services");
+  };
 
   return (
     <div>
@@ -560,10 +556,11 @@ function SettingsPage({
           </p>
         </div>
         <div className="flex items-center gap-4">
-          <MenuBar
-            items={menuItems}
-            activeItem={activeTab}
-            onItemClick={setActiveTab}
+          <ExpandableTabs
+            tabs={tabs}
+            activeColor="text-primary"
+            defaultSelected={activeTab === "Billing & Plan" ? 0 : 2}
+            onChange={handleTabChange}
           />
         </div>
       </div>
@@ -607,7 +604,7 @@ function SettingsPage({
                 <div
                   key={plan.key}
                   className={cn(
-                    "rounded-xl border p-5 transition-colors relative",
+                    "rounded-xl border p-5 transition-colors relative flex flex-col",
                     isCurrent ? "border-primary bg-primary/5" : "border-border bg-card hover:border-border/80",
                     plan.popular && !isCurrent && "border-primary/30"
                   )}
@@ -623,7 +620,7 @@ function SettingsPage({
                     <span className="text-2xl font-bold">{plan.price}</span>
                     <span className="text-sm text-muted-foreground">{plan.period}</span>
                   </div>
-                  <ul className="space-y-1.5 mb-4">
+                  <ul className="space-y-1.5 mb-4 flex-1">
                     {plan.features.map((f, i) => (
                       <li key={i} className="flex items-center gap-1.5 text-xs">
                         <CheckCircle2 className="h-3 w-3 text-emerald-400 shrink-0" /> {f}
@@ -631,22 +628,29 @@ function SettingsPage({
                     ))}
                   </ul>
                   {isCurrent ? (
-                    <div className="text-center rounded-lg border border-primary/30 bg-primary/10 px-3 py-2 text-xs font-medium text-primary">
+                    <div className="text-center rounded-lg border border-primary/30 bg-primary/10 px-3 py-2 text-xs font-medium text-primary mt-auto mt-4">
                       Current plan
                     </div>
                   ) : (
-                    <button
-                      className="w-full rounded-lg bg-primary px-3 py-2 text-xs font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
-                      onClick={() => {
-                        // TODO: Redirect to Stripe checkout
-                        alert(`Stripe checkout for ${plan.name} plan would open here. Integration pending.`);
-                      }}
-                    >
-                      {PLANS_LIST.findIndex((p) => p.key === user.plan || (user.plan === "trial" && p.key === "pro")) > PLANS_LIST.findIndex((p) => p.key === plan.key)
-                        ? "Downgrade"
-                        : "Upgrade"}{" "}
-                      to {plan.name}
-                    </button>
+                    <div className="mt-auto pt-4 flex flex-col gap-2">
+                      <button
+                        className="w-full rounded-lg bg-primary px-3 py-2 text-xs font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
+                        onClick={() => {
+                          onCheckout(plan.key === "pro" ? "price_pro_example" : "price_business_example");
+                        }}
+                      >
+                        {user.plan === "free" && plan.key !== "free" 
+                          ? `Start 14-day free trial` 
+                          : PLANS_LIST.findIndex((p) => p.key === user.plan || (user.plan === "trial" && p.key === "pro")) > PLANS_LIST.findIndex((p) => p.key === plan.key)
+                          ? `Downgrade to ${plan.name}`
+                          : `Upgrade to ${plan.name}`}
+                      </button>
+                      {user.plan === "free" && plan.key !== "free" && (
+                        <p className="text-[10px] text-center text-muted-foreground leading-tight">
+                          Requires credit card via Stripe.<br />Automatically billed when trial ends.
+                        </p>
+                      )}
+                    </div>
                   )}
                 </div>
               );
@@ -842,11 +846,36 @@ export default function Dashboard() {
   } | null>(null);
   const [authChecked, setAuthChecked] = useState(false);
   const [linkModalOpen, setLinkModalOpen] = useState(false);
+  const [checkoutLoading, setCheckoutLoading] = useState(false);
+  const [isVerifying, setIsVerifying] = useState(false);
 
   // Clerk handles auth via middleware — just wait for user to load
   useEffect(() => {
     if (isLoaded) setAuthChecked(true);
   }, [isLoaded]);
+
+  useEffect(() => {
+    if (isLoaded && clerkUser && typeof window !== "undefined") {
+      const urlParams = new URLSearchParams(window.location.search);
+      const sessionId = urlParams.get("session_id");
+
+      if (sessionId) {
+         setIsVerifying(true);
+         // Clean URL manually
+         window.history.replaceState({}, document.title, window.location.pathname);
+         
+         // Call our secure manual verification backend
+         fetch(`/api/stripe/verify-session?session_id=${sessionId}`)
+           .then(() => clerkUser.reload())
+           .then(() => {
+              setIsVerifying(false);
+           })
+           .catch(() => {
+              setIsVerifying(false);
+           });
+      }
+    }
+  }, [isLoaded, clerkUser]);
 
   const fetchServices = useCallback(() => {
     fetch(`/api/services?t=${Date.now()}`, { cache: "no-store" })
@@ -936,13 +965,29 @@ export default function Dashboard() {
     signOut({ redirectUrl: "/" });
   };
 
-  if (!authChecked) {
+  if (!authChecked || !clerkUser) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <RefreshCw className="h-6 w-6 text-muted-foreground animate-spin" />
       </div>
     );
   }
+
+  const handleCheckout = async (customPriceId?: string) => {
+    try {
+      setCheckoutLoading(true);
+      const res = await fetch("/api/stripe/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ priceId: customPriceId }),
+      });
+      const { url } = await res.json();
+      if (url) window.location.href = url;
+    } catch (err) {
+      console.error(err);
+      setCheckoutLoading(false);
+    }
+  };
 
   // Build user profile from Clerk
   const PLANS: Record<string, User["plan_details"]> = {
@@ -952,7 +997,10 @@ export default function Dashboard() {
     business: { name: "Business", maxServices: 999, pollIntervalMs: 60 * 1000, historyDays: 365, features: ["Unlimited services", "1-min polling", "1-year history", "All alert channels", "Unlimited team members", "SOC2 / HIPAA reports", "Priority support"] },
   };
 
-  const userPlanKey = "trial"; // TODO: Read from Stripe subscription via metadata
+  const subscriptionStatus = clerkUser.publicMetadata?.stripeSubscriptionStatus as string | undefined;
+  const requiresSubscription = (!subscriptionStatus || (subscriptionStatus !== "active" && subscriptionStatus !== "trialing"));
+
+  const userPlanKey = requiresSubscription ? "free" : ((clerkUser.publicMetadata?.stripePlanKey as string) || "trial");
   const user: User = clerkUser ? {
     email: clerkUser.emailAddresses[0]?.emailAddress || "",
     name: clerkUser.firstName || clerkUser.emailAddresses[0]?.emailAddress?.split("@")[0] || "User",
@@ -970,6 +1018,48 @@ export default function Dashboard() {
   const displayedChanges = filterService
     ? changes.filter((c) => c.service_id === filterService)
     : changes;
+
+  if (requiresSubscription || isVerifying) {
+    return (
+      <div className="flex h-screen bg-background/50 items-center justify-center p-6">
+        <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+        <div className="relative max-w-md w-full border border-border bg-card p-10 rounded-2xl flex flex-col items-center text-center gap-4 shadow-2xl">
+          {isVerifying ? (
+             <>
+               <RefreshCw className="h-12 w-12 text-primary mb-2 animate-spin" />
+               <h2 className="text-3xl font-bold tracking-tight">Verifying</h2>
+               <p className="text-muted-foreground text-sm mb-4">
+                 Synchronizing your secure subscription payload... This will just take a brief moment.
+               </p>
+             </>
+          ) : (
+             <>
+               <Shield className="h-12 w-12 text-primary mb-2" />
+               <h2 className="text-3xl font-bold tracking-tight">Access Restricted</h2>
+               <p className="text-muted-foreground text-sm mb-4">
+                 A valid subscription is required to access the DriftGuard terminal. You will not be charged during the 14-day trial period.
+               </p>
+               <button 
+                  onClick={() => handleCheckout()} 
+                  disabled={checkoutLoading}
+                  className="w-full relative flex justify-center items-center bg-primary text-primary-foreground font-semibold py-3 rounded-lg hover:bg-primary/90 transition-colors uppercase tracking-widest text-sm disabled:opacity-50"
+               >
+                 {checkoutLoading ? (
+                    <RefreshCw className="h-5 w-5 animate-spin" />
+                 ) : "Authenticate Profile"}
+               </button>
+               <p className="text-xs text-muted-foreground mt-2 px-4 leading-relaxed">
+                 Requires credit card verification via secure Stripe portal.<br/>Automatically billed when trial ends. You can cancel anytime.
+               </p>
+               <button onClick={handleLogout} className="mt-4 text-xs font-semibold uppercase tracking-widest text-muted-foreground hover:text-foreground underline underline-offset-4">
+                 Abort Sequence
+               </button>
+             </>
+          )}
+        </div>
+      </div>
+    );
+  }
 
   const sidebarLinks = [
     {
@@ -989,13 +1079,13 @@ export default function Dashboard() {
   ];
 
   return (
-    <div className="flex h-screen bg-background overflow-hidden">
+    <div className="flex h-screen bg-background/50 overflow-hidden p-2 gap-2">
       <Sidebar open={sidebarOpen} setOpen={setSidebarOpen}>
-        <SidebarBody className="justify-between gap-10 border-r border-border bg-card dark:bg-neutral-900">
+        <SidebarBody className="justify-between gap-10 border border-border bg-card rounded-[1rem]">
           <div className="flex flex-col flex-1 overflow-y-auto overflow-x-hidden">
             {/* Logo */}
             {sidebarOpen ? (
-              <a href="/" className="font-normal flex space-x-2 items-center text-sm py-1 relative z-20">
+              <a href="/" className="font-normal flex space-x-2 items-center text-sm py-1 px-2 relative z-20">
                 <Shield className="h-6 w-6 text-primary flex-shrink-0" />
                 <motion.span
                   initial={{ opacity: 0 }}
@@ -1006,7 +1096,7 @@ export default function Dashboard() {
                 </motion.span>
               </a>
             ) : (
-              <a href="/" className="font-normal flex space-x-2 items-center text-sm py-1 relative z-20">
+              <a href="/" className="font-normal flex items-center justify-center text-sm py-1 relative z-20 px-1">
                 <Shield className="h-6 w-6 text-primary flex-shrink-0" />
               </a>
             )}
@@ -1018,7 +1108,7 @@ export default function Dashboard() {
                   key={idx}
                   link={link}
                   className={cn(
-                    "rounded-lg px-2 transition-colors",
+                    "rounded-[0.5rem] px-2 transition-colors",
                     (idx === 0 && page === "dashboard") || (idx === 1 && page === "settings")
                       ? "bg-muted text-foreground"
                       : "hover:bg-muted/50"
@@ -1034,16 +1124,13 @@ export default function Dashboard() {
 
           {/* Bottom section */}
           <div className="flex flex-col gap-2">
-            <div className="px-2">
-              <ThemeToggle />
-            </div>
             <SidebarLink
               link={{
                 label: "Logout",
                 href: "#",
                 icon: <LogOut className="h-5 w-5 flex-shrink-0 text-neutral-700 dark:text-neutral-200" />,
               }}
-              className="rounded-lg px-2 hover:bg-destructive/10 hover:text-destructive transition-colors"
+              className="rounded-[0.5rem] px-2 hover:bg-destructive/10 hover:text-destructive transition-colors"
               onClick={(e: React.MouseEvent) => {
                 e.preventDefault();
                 handleLogout();
@@ -1053,28 +1140,28 @@ export default function Dashboard() {
             <SidebarLink
               link={{
                 label: user.name || user.email,
-                href: "#",
+                href: "/profile",
                 icon: (
                   <div className="h-7 w-7 flex-shrink-0 rounded-full bg-primary/20 flex items-center justify-center text-xs font-bold text-primary">
                     {(user.name || user.email || "U").charAt(0).toUpperCase()}
                   </div>
                 ),
               }}
-              className="px-2"
-              onClick={(e: React.MouseEvent) => e.preventDefault()}
+              className="px-2 hover:bg-muted/50 transition-colors rounded-[0.5rem]"
             />
           </div>
         </SidebarBody>
       </Sidebar>
 
       {/* Main Content */}
-      <main className="flex-1 overflow-y-auto">
+      <main className="flex-1 overflow-y-auto border border-border bg-card rounded-[1rem]">
         <div className="max-w-7xl mx-auto px-6 py-8">
           {page === "settings" ? (
             <SettingsPage
               services={services}
               user={user}
               onSave={handleSaveApiKey}
+              onCheckout={handleCheckout}
             />
           ) : (
             <>

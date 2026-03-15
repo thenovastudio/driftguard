@@ -57,36 +57,51 @@ const pollableFields: Record<string, Array<{ key: string; values: unknown[] }>> 
 
 export async function simulatePoll(userId: string, serviceId: string) {
   // Update last_polled_at
-  await getSupabase()
+  const { error: updateError } = await getSupabase()
     .from("services")
     .update({ last_polled_at: new Date().toISOString() })
     .eq("id", serviceId)
     .eq("user_id", userId);
 
-  // ~40% chance of generating a change
-  if (Math.random() > 0.4) {
-    return { service: serviceId, changesGenerated: 0 };
+  if (updateError) {
+    console.error("Supabase update error:", updateError);
   }
 
   const fields = pollableFields[serviceId];
   if (!fields) return { service: serviceId, changesGenerated: 0 };
 
+  // Always generate a guaranteed change for demonstration
   const field = fields[Math.floor(Math.random() * fields.length)];
   const baseline = { ...configBaselines[serviceId] };
-  const newValue = field.values[Math.floor(Math.random() * field.values.length)];
+  let newValue = field.values[Math.floor(Math.random() * field.values.length)];
   const oldValue = baseline[field.key];
 
+  // Ensure it forces a difference
   if (JSON.stringify(newValue) === JSON.stringify(oldValue)) {
-    return { service: serviceId, changesGenerated: 0 };
+     const otherValues = field.values.filter(v => JSON.stringify(v) !== JSON.stringify(oldValue));
+     if (otherValues.length > 0) {
+        newValue = otherValues[Math.floor(Math.random() * otherValues.length)];
+     } else {
+        return { service: serviceId, changesGenerated: 0 };
+     }
   }
 
   const diff = { [field.key]: { old: oldValue, new: newValue } };
 
-  await getSupabase().from("changes").insert({
+  const { error: insertError } = await getSupabase().from("changes").insert({
     user_id: userId,
     service_id: serviceId,
     diff: JSON.stringify(diff),
   });
+
+  if (insertError) {
+    console.error("Supabase insert error:", insertError);
+    throw new Error(insertError.message);
+  }
+
+  // Update the baseline after so next poll also changes a fresh value potentially
+  // (In a real app, you'd fetch the current state, but this simulates constant drift)
+  configBaselines[serviceId][field.key] = newValue;
 
   return { service: serviceId, changesGenerated: 1 };
 }

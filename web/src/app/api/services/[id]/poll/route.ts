@@ -19,7 +19,8 @@ export async function POST(
       message: "Poll completed",
       ...result,
     });
-  } catch {
-    return NextResponse.json({ error: "Service not found" }, { status: 404 });
+  } catch (err: any) {
+    console.error("Polling error:", err);
+    return NextResponse.json({ error: err.message || "Failed to poll service" }, { status: 500 });
   }
 }

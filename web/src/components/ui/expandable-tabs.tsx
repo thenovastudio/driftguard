@@ -17,13 +17,14 @@ interface Separator {
   icon?: never;
 }
 
-type TabItem = Tab | Separator;
+export type TabItem = Tab | Separator;
 
 interface ExpandableTabsProps {
   tabs: TabItem[];
   className?: string;
   activeColor?: string;
   onChange?: (index: number | null) => void;
+  defaultSelected?: number | null;
 }
 
 const buttonVariants = {
@@ -52,23 +53,9 @@ export function ExpandableTabs({
   className,
   activeColor = "text-primary",
   onChange,
+  defaultSelected = null,
 }: ExpandableTabsProps) {
-  const [selected, setSelected] = React.useState<number | null>(null);
-  const outsideClickRef = React.useRef<HTMLDivElement>(null);
-
-  React.useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (
-        outsideClickRef.current &&
-        !outsideClickRef.current.contains(event.target as Node)
-      ) {
-        setSelected(null);
-        onChange?.(null);
-      }
-    }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [onChange]);
+  const [selected, setSelected] = React.useState<number | null>(defaultSelected);
 
   const handleSelect = (index: number) => {
     setSelected(index);
@@ -81,7 +68,6 @@ export function ExpandableTabs({
 
   return (
     <div
-      ref={outsideClickRef}
       className={cn(
         "flex flex-wrap items-center gap-2 rounded-2xl border bg-background p-1 shadow-sm",
         className
@@ -118,7 +104,7 @@ export function ExpandableTabs({
                   animate="animate"
                   exit="exit"
                   transition={transition}
-                  className="overflow-hidden"
+                  className="overflow-hidden whitespace-nowrap"
                 >
                   {tab.title}
                 </motion.span>

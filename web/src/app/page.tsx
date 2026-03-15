@@ -30,8 +30,6 @@ import {
   X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { GlowingEffect } from "@/components/ui/glowing-effect";
-import { GetStartedButton } from "@/components/ui/get-started-button";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 
 // ── Data ─────────────────────────────────────────────────────
@@ -171,53 +169,55 @@ function Nav({ isSignedIn }: { isSignedIn: boolean }) {
   const [mobileOpen, setMobileOpen] = useState(false);
 
   return (
-    <nav className="fixed top-0 left-0 right-0 z-50 border-b border-border bg-background/80 backdrop-blur-md">
-      <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
-        <a href="/" className="flex items-center gap-3">
-          <Shield className="h-6 w-6 text-primary" />
-          <span className="text-lg font-semibold">DriftGuard</span>
+    <nav className="fixed top-0 left-0 right-0 z-50 border-b border-border bg-background">
+      <div className="mx-auto flex max-w-7xl items-center justify-between px-12 py-6">
+        <a href="/" className="flex items-center gap-4">
+          <div className="flex h-10 w-10 items-center justify-center bg-primary border-none">
+            <Shield className="h-5 w-5 text-primary-foreground" />
+          </div>
+          <span className="text-2xl font-black uppercase tracking-tighter">Monitra</span>
         </a>
 
         {/* Desktop nav */}
-        <div className="hidden md:flex items-center gap-8">
-          <a href="#features" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
-            Features
+        <div className="hidden md:flex items-center gap-10">
+          <a href="#features" className="text-xs font-mono uppercase tracking-widest text-muted-foreground hover:text-foreground transition-colors">
+            Protocols
           </a>
-          <a href="#how-it-works" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
-            How it works
+          <a href="#how-it-works" className="text-xs font-mono uppercase tracking-widest text-muted-foreground hover:text-foreground transition-colors">
+            Architecture
           </a>
-          <a href="#integrations" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
-            Integrations
+          <a href="#integrations" className="text-xs font-mono uppercase tracking-widest text-muted-foreground hover:text-foreground transition-colors">
+            Nodes
           </a>
-          <a href="#pricing" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
-            Pricing
+          <a href="#pricing" className="text-xs font-mono uppercase tracking-widest text-muted-foreground hover:text-foreground transition-colors">
+            Clearance
           </a>
           <ThemeToggle />
           <a
             href={isSignedIn ? "/dashboard" : "/register"}
-            className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
+            className="inline-flex items-center gap-2 bg-destructive px-6 py-3 text-xs font-mono font-bold tracking-widest text-destructive-foreground hover:bg-destructive/90 transition-colors uppercase"
           >
-            {isSignedIn ? "Open Dashboard" : "Sign In"} <ArrowRight className="h-4 w-4" />
+            {isSignedIn ? "ACCESS TERMINAL" : "AUTHENTICATE"} <ArrowRight className="h-4 w-4" />
           </a>
         </div>
 
         {/* Mobile toggle */}
         <button
-          className="md:hidden p-2"
+          className="md:hidden p-3 border border-border bg-card"
           onClick={() => setMobileOpen(!mobileOpen)}
         >
-          {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+          {mobileOpen ? <X className="h-5 w-5 text-primary" /> : <Menu className="h-5 w-5 text-primary" />}
         </button>
       </div>
 
       {/* Mobile nav */}
       {mobileOpen && (
-        <div className="md:hidden border-t border-border bg-background px-6 py-4 space-y-4">
-          <a href="#features" className="block text-sm text-muted-foreground">Features</a>
-          <a href="#how-it-works" className="block text-sm text-muted-foreground">How it works</a>
-          <a href="#integrations" className="block text-sm text-muted-foreground">Integrations</a>
-          <a href="#pricing" className="block text-sm text-muted-foreground">Pricing</a>
-          <a href={isSignedIn ? "/dashboard" : "/login"} className="block text-sm text-primary font-medium">{isSignedIn ? "Open Dashboard →" : "Sign In →"}</a>
+        <div className="md:hidden border-t border-border bg-background px-12 py-8 space-y-8">
+          <a href="#features" className="block text-xs font-mono uppercase tracking-widest text-muted-foreground">Protocols</a>
+          <a href="#how-it-works" className="block text-xs font-mono uppercase tracking-widest text-muted-foreground">Architecture</a>
+          <a href="#integrations" className="block text-xs font-mono uppercase tracking-widest text-muted-foreground">Nodes</a>
+          <a href="#pricing" className="block text-xs font-mono uppercase tracking-widest text-muted-foreground">Clearance</a>
+          <a href={isSignedIn ? "/dashboard" : "/login"} className="block text-xs font-mono uppercase tracking-widest text-destructive font-bold">{isSignedIn ? "ACCESS TERMINAL →" : "AUTHENTICATE →"}</a>
         </div>
       )}
     </nav>
@@ -226,45 +226,43 @@ function Nav({ isSignedIn }: { isSignedIn: boolean }) {
 
 function HeroSection({ isSignedIn }: { isSignedIn: boolean }) {
   return (
-    <section className="relative pt-32 pb-20 px-6 overflow-hidden">
-      {/* Background glow */}
-      <div className="absolute top-20 left-1/2 -translate-x-1/2 w-[600px] h-[600px] bg-primary/5 rounded-full blur-3xl pointer-events-none" />
-
-      <div className="mx-auto max-w-7xl text-center relative">
-        <div className="inline-flex items-center gap-2 rounded-full border border-border bg-muted/50 px-4 py-1.5 text-xs text-muted-foreground mb-8">
-          <Zap className="h-3 w-3 text-primary" />
-          Catch SaaS config changes before they cause outages
+    <section className="relative pt-48 pb-32 px-12 overflow-hidden border-b border-border">
+      <div className="mx-auto max-w-7xl relative">
+        <div className="inline-flex items-center gap-3 border border-border bg-card px-6 py-2 mb-12">
+          <Zap className="h-4 w-4 text-secondary-foreground" />
+          <span className="text-xs font-mono tracking-widest uppercase text-secondary-foreground">System Status: Monitoring 8 Nodes</span>
         </div>
 
-        <h1 className="text-4xl md:text-6xl lg:text-7xl font-bold tracking-tight mb-6 leading-[1.1]">
-          Your SaaS configs are{" "}
-          <span className="text-primary">drifting right now</span>
+        <h1 className="text-5xl md:text-7xl lg:text-8xl font-black tracking-tighter mb-10 leading-[1.0] max-w-[15ch]">
+          YOUR CONFIGS ARE <span className="text-primary block mt-2">DRIFTING SILENTLY.</span>
         </h1>
 
-        <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto mb-10">
+        <p className="text-lg md:text-xl text-foreground font-medium max-w-2xl mb-16 leading-relaxed">
           Someone changed a webhook. Someone toggled a setting. Someone broke
-          something — and you won't find out until users complain. DriftGuard
-          watches your SaaS configs 24/7 so you always know what changed.
+          something — and you won't find out until users complain. Monitra
+          watches your exact configurations 24/7.
         </p>
 
-        <div className="flex items-center justify-center gap-4 flex-wrap">
-          <GetStartedButton href={isSignedIn ? "/dashboard" : "/register"} label={isSignedIn ? "Open Dashboard" : undefined} />
+        <div className="flex items-center gap-6 flex-wrap">
+          <a href={isSignedIn ? "/dashboard" : "/register"} className="inline-flex items-center gap-2 bg-destructive text-destructive-foreground px-8 py-4 text-xs font-mono font-bold tracking-widest uppercase hover:bg-destructive/90 transition-colors">
+            {isSignedIn ? "ACCESS TERMINAL" : "INITIALIZE SCAN"} <ArrowRight className="h-4 w-4" />
+          </a>
           <a
             href="#how-it-works"
-            className="inline-flex items-center gap-2 rounded-lg border border-border px-6 py-3 text-base font-medium hover:bg-muted transition-colors"
+            className="inline-flex items-center gap-3 border border-border px-8 py-4 text-xs font-mono font-bold tracking-widest text-foreground hover:bg-muted transition-colors uppercase"
           >
-            See how it works
+            VIEW SCHEMATICS
           </a>
         </div>
 
         {/* Stats bar */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mt-20 pt-12 border-t border-border">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-0 mt-32 border-t border-l border-border bg-card">
           {STATS.map((stat, i) => (
-            <div key={i} className="text-center">
-              <div className="text-3xl md:text-4xl font-bold text-primary mb-1">
+            <div key={i} className="p-10 border-r border-b border-border text-left hover:bg-muted transition-colors">
+              <div className="text-4xl md:text-5xl font-black text-primary mb-4 font-mono">
                 {stat.value}
               </div>
-              <div className="text-sm text-muted-foreground">{stat.label}</div>
+              <div className="text-xs font-mono text-muted-foreground tracking-widest uppercase leading-loose">{stat.label}</div>
             </div>
           ))}
         </div>
@@ -275,30 +273,30 @@ function HeroSection({ isSignedIn }: { isSignedIn: boolean }) {
 
 function PainPointsSection() {
   return (
-    <section className="py-20 px-6 bg-muted/30">
+    <section className="py-32 px-12 border-b border-border bg-background">
       <div className="mx-auto max-w-7xl">
-        <div className="text-center mb-16">
-          <h2 className="text-3xl md:text-4xl font-bold mb-4">
-            The problems nobody talks about
+        <div className="mb-20 max-w-3xl">
+          <h2 className="text-4xl md:text-5xl font-black mb-6 uppercase tracking-tighter text-foreground">
+            The vulnerabilities <br className="hidden md:block"/>nobody talks about
           </h2>
-          <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-            IaC tools like Terraform cover your infrastructure. But what about
-            the 20+ SaaS services configured through their own dashboards?
+          <p className="text-lg font-mono text-muted-foreground">
+            IaC tools like Terraform map your infrastructure. But what about
+            the 20+ SaaS nodes configured through web dashboards?
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-0 border-t border-l border-border bg-card">
           {PAIN_POINTS.map((point, i) => (
             <div
               key={i}
-              className="rounded-xl border border-border bg-card p-6 flex gap-4"
+              className="border-r border-b border-border p-12 hover:bg-muted transition-colors flex flex-col gap-6"
             >
-              <div className="w-fit rounded-lg bg-destructive/10 p-2 h-fit">
-                <point.icon className="h-5 w-5 text-destructive" />
+              <div className="w-12 h-12 border border-destructive flex items-center justify-center bg-transparent">
+                <point.icon className="h-6 w-6 text-destructive" />
               </div>
               <div>
-                <h3 className="font-semibold mb-2">{point.title}</h3>
-                <p className="text-sm text-muted-foreground leading-relaxed">
+                <h3 className="text-2xl font-bold mb-4 tracking-tighter uppercase text-foreground">{point.title}</h3>
+                <p className="text-base text-muted-foreground leading-loose">
                   {point.description}
                 </p>
               </div>
@@ -312,44 +310,39 @@ function PainPointsSection() {
 
 function FeaturesSection() {
   return (
-    <section id="features" className="py-20 px-6">
+    <section id="features" className="py-32 px-12 border-b border-border">
       <div className="mx-auto max-w-7xl">
-        <div className="text-center mb-16">
-          <h2 className="text-3xl md:text-4xl font-bold mb-4">
-            Everything you need to stay in control
+        <div className="mb-20 max-w-3xl">
+          <h2 className="text-4xl md:text-5xl font-black mb-6 uppercase tracking-tighter text-foreground">
+            Absolute Control Parameters
           </h2>
-          <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-            Not just monitoring — a full config intelligence platform for your
-            entire SaaS stack.
+          <p className="text-lg font-mono text-muted-foreground">
+            Not just monitoring — a full intelligence terminal for your
+            entire infrastructure.
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-0 border-t border-l border-border bg-card">
           {FEATURES.map((feature, i) => (
             <div
               key={i}
               className={cn(
-                "rounded-xl border border-border p-6 transition-colors",
+                "border-r border-b border-border p-10 transition-colors flex flex-col",
                 feature.highlight
-                  ? "bg-card border-primary/20"
-                  : "bg-card hover:border-border"
+                  ? "bg-secondary"
+                  : "bg-transparent hover:bg-muted"
               )}
             >
               <div
                 className={cn(
-                  "w-fit rounded-lg p-2 mb-4",
-                  feature.highlight ? "bg-primary/10" : "bg-muted"
+                  "w-12 h-12 flex items-center justify-center border mb-8",
+                  feature.highlight ? "border-primary text-primary" : "border-border text-muted-foreground"
                 )}
               >
-                <feature.icon
-                  className={cn(
-                    "h-5 w-5",
-                    feature.highlight ? "text-primary" : "text-muted-foreground"
-                  )}
-                />
+                <feature.icon className="h-6 w-6" />
               </div>
-              <h3 className="font-semibold mb-2">{feature.title}</h3>
-              <p className="text-sm text-muted-foreground leading-relaxed">
+              <h3 className="text-xl font-bold tracking-tight uppercase mb-4 text-foreground">{feature.title}</h3>
+              <p className="text-sm text-muted-foreground leading-loose">
                 {feature.description}
               </p>
             </div>
@@ -362,31 +355,30 @@ function FeaturesSection() {
 
 function HowItWorksSection() {
   return (
-    <section id="how-it-works" className="py-20 px-6 bg-muted/30">
+    <section id="how-it-works" className="py-32 px-12 bg-background border-b border-border">
       <div className="mx-auto max-w-7xl">
-        <div className="text-center mb-16">
-          <h2 className="text-3xl md:text-4xl font-bold mb-4">
-            Set up in minutes, not days
+        <div className="mb-20 max-w-3xl">
+          <h2 className="text-4xl md:text-5xl font-black mb-6 uppercase tracking-tighter text-foreground">
+            Initialization Sequence
           </h2>
-          <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-            No agents. No infrastructure. Just paste an API key and we handle
-            the rest.
+          <p className="text-lg font-mono text-muted-foreground">
+            No agents. No infrastructure. Instant protocol connection.
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-0 border-t border-l border-border bg-card">
           {HOW_IT_WORKS.map((item, i) => (
-            <div key={i} className="relative">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-lg">
+            <div key={i} className="relative border-r border-b border-border p-10 hover:bg-muted transition-colors">
+              <div className="flex items-center gap-4 mb-8">
+                <div className="w-12 h-12 border border-primary flex items-center justify-center text-primary font-black text-xl font-mono">
                   {item.step}
                 </div>
                 {i < HOW_IT_WORKS.length - 1 && (
-                  <ChevronRight className="hidden md:block h-5 w-5 text-muted-foreground absolute left-[3.5rem] top-3" />
+                  <ChevronRight className="hidden md:block h-6 w-6 text-muted-foreground absolute left-[4.5rem] top-13" />
                 )}
               </div>
-              <h3 className="font-semibold mb-2">{item.title}</h3>
-              <p className="text-sm text-muted-foreground leading-relaxed">
+              <h3 className="text-xl font-bold tracking-tight uppercase mb-4 text-foreground">{item.title}</h3>
+              <p className="text-sm text-muted-foreground leading-loose">
                 {item.description}
               </p>
             </div>
@@ -399,45 +391,43 @@ function HowItWorksSection() {
 
 function IntegrationsSection() {
   return (
-    <section id="integrations" className="py-20 px-6">
+    <section id="integrations" className="py-32 px-12 border-b border-border bg-background">
       <div className="mx-auto max-w-7xl">
-        <div className="text-center mb-16">
-          <h2 className="text-3xl md:text-4xl font-bold mb-4">
-            Connect your entire stack
+        <div className="mb-20 max-w-3xl">
+          <h2 className="text-4xl md:text-5xl font-black mb-6 uppercase tracking-tighter text-foreground">
+            Supported Nodes
           </h2>
-          <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-            8 integrations and growing. Each one monitors the specific config
-            settings that matter.
+          <p className="text-lg font-mono text-muted-foreground">
+            8 integrations online. Constant expansion protocol active.
           </p>
         </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-0 border-t border-l border-border bg-card">
           {INTEGRATIONS.map((integration, i) => (
             <div
               key={i}
-              className="group rounded-xl border border-border bg-card p-6 flex flex-col items-center gap-3 hover:border-primary/30 transition-colors cursor-pointer"
+              className="group border-r border-b border-border p-10 flex flex-col items-center gap-6 hover:bg-secondary transition-colors cursor-pointer"
             >
               <div
-                className="w-12 h-12 rounded-xl flex items-center justify-center"
-                style={{ backgroundColor: `${integration.color}15` }}
+                className="w-16 h-16 border flex items-center justify-center bg-background group-hover:bg-primary/10 transition-colors"
+                style={{ borderColor: integration.color }}
               >
                 <integration.icon
-                  className="h-6 w-6"
+                  className="h-8 w-8"
                   style={{ color: integration.color }}
                 />
               </div>
-              <span className="font-medium text-sm">{integration.name}</span>
-              <span className="text-xs text-muted-foreground flex items-center gap-1">
-                <CheckCircle2 className="h-3 w-3 text-emerald-400" />
-                Ready to connect
+              <span className="font-bold text-base tracking-widest uppercase">{integration.name}</span>
+              <span className="text-xs font-mono text-muted-foreground flex items-center gap-2">
+                <CheckCircle2 className="h-4 w-4 text-secondary-foreground" />
+                ONLINE
               </span>
             </div>
           ))}
         </div>
 
-        <p className="text-center text-sm text-muted-foreground mt-8">
-          More integrations coming soon: AWS, GCP, Azure, Okta, Datadog,
-          PagerDuty, and 20+ more.
+        <p className="mt-12 text-sm font-mono text-muted-foreground border-l-2 border-primary pl-4">
+          PENDING NODES: AWS, GCP, AZURE, OKTA, DATADOG, PAGERDUTY
         </p>
       </div>
     </section>
@@ -446,116 +436,113 @@ function IntegrationsSection() {
 
 function PricingSection({ isSignedIn }: { isSignedIn: boolean }) {
   return (
-    <section id="pricing" className="py-20 px-6 bg-muted/30">
+    <section id="pricing" className="py-32 px-12 bg-background border-b border-border">
       <div className="mx-auto max-w-7xl">
-        <div className="text-center mb-16">
-          <h2 className="text-3xl md:text-4xl font-bold mb-4">
-            Simple, transparent pricing
+        <div className="mb-20 max-w-3xl">
+          <h2 className="text-4xl md:text-5xl font-black mb-6 uppercase tracking-tighter text-foreground">
+            Clearance Levels
           </h2>
-          <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-            Start free. Upgrade when you need more.
+          <p className="text-lg font-mono text-muted-foreground">
+            Select your operational capacity.
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl mx-auto">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-0 border-t border-l border-border bg-card">
           {/* Free */}
-          <div className="rounded-xl border border-border bg-card p-8">
-            <h3 className="font-semibold text-lg mb-1">Free</h3>
-            <p className="text-sm text-muted-foreground mb-4">
-              For side projects & testing
+          <div className="border-r border-b border-border p-12 hover:bg-muted transition-colors">
+            <h3 className="text-xl font-bold tracking-widest uppercase mb-2">Level 1</h3>
+            <p className="text-xs font-mono text-muted-foreground mb-8 uppercase tracking-widest">
+              Standard Access
             </p>
-            <div className="mb-6">
-              <span className="text-4xl font-bold">$0</span>
-              <span className="text-muted-foreground">/mo</span>
+            <div className="mb-10 font-mono">
+              <span className="text-6xl font-black text-foreground">$0</span>
             </div>
-            <ul className="space-y-3 mb-8">
+            <ul className="space-y-4 mb-12">
               {[
-                "Up to 3 services",
-                "Poll every 30 minutes",
-                "7-day change history",
-                "Email alerts",
+                "3 Nodes max",
+                "30-min scan polling",
+                "7-day retention log",
+                "Email dispatches",
               ].map((f, i) => (
-                <li key={i} className="flex items-center gap-2 text-sm">
-                  <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0" />
+                <li key={i} className="flex items-center gap-3 text-sm font-mono">
+                  <span className="w-1.5 h-1.5 bg-primary rounded-none shrink-0" />
                   {f}
                 </li>
               ))}
             </ul>
             <a
               href={isSignedIn ? "/dashboard" : "/register"}
-              className="block text-center rounded-lg border border-border px-4 py-2.5 text-sm font-medium hover:bg-muted transition-colors"
+              className="block text-center border border-border px-6 py-4 text-xs font-mono font-bold tracking-widest uppercase hover:bg-foreground hover:text-background transition-colors"
             >
-              {isSignedIn ? "Open Dashboard" : "Start Free Trial"}
+              {isSignedIn ? "ACCESS TERMINAL" : "ACQUIRE KEY"}
             </a>
           </div>
 
           {/* Pro */}
-          <div className="rounded-xl border-2 border-primary bg-card p-8 relative">
-            <div className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-primary px-3 py-0.5 text-xs font-medium text-primary-foreground">
-              Most popular
+          <div className="border-r border-b border-primary bg-secondary p-12 relative overflow-hidden">
+            <div className="absolute top-0 right-0 bg-primary text-primary-foreground text-[10px] font-mono font-bold tracking-widest uppercase px-3 py-1">
+              Recommended
             </div>
-            <h3 className="font-semibold text-lg mb-1">Pro</h3>
-            <p className="text-sm text-muted-foreground mb-4">
-              For growing teams
+            <h3 className="text-xl font-bold tracking-widest uppercase mb-2 text-primary">Level 2</h3>
+            <p className="text-xs font-mono text-muted-foreground mb-8 uppercase tracking-widest">
+              Advanced Operations
             </p>
-            <div className="mb-6">
-              <span className="text-4xl font-bold">$29</span>
-              <span className="text-muted-foreground">/mo</span>
+            <div className="mb-10 font-mono">
+              <span className="text-6xl font-black text-primary">$29</span>
             </div>
-            <ul className="space-y-3 mb-8">
+            <ul className="space-y-4 mb-12">
               {[
-                "Up to 15 services",
-                "Poll every 5 minutes",
-                "90-day change history",
-                "Slack + email + webhook alerts",
-                "Team members (5)",
-                "Compliance exports",
+                "15 Nodes max",
+                "5-min scan polling",
+                "90-day retention log",
+                "Multi-channel dispatches",
+                "5 Agents allowed",
+                "Compliance export protocol",
               ].map((f, i) => (
-                <li key={i} className="flex items-center gap-2 text-sm">
-                  <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0" />
+                <li key={i} className="flex items-center gap-3 text-sm font-mono">
+                  <span className="w-1.5 h-1.5 bg-primary rounded-none shrink-0" />
                   {f}
                 </li>
               ))}
             </ul>
             <a
               href={isSignedIn ? "/dashboard" : "/register"}
-              className="block text-center rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
+              className="block text-center bg-primary text-primary-foreground px-6 py-4 text-xs font-mono font-bold tracking-widest uppercase hover:bg-primary/90 transition-colors"
             >
-              {isSignedIn ? "Open Dashboard" : "Start 14-day trial"}
+              {isSignedIn ? "ACCESS TERMINAL" : "ACQUIRE KEY"}
             </a>
           </div>
 
           {/* Business */}
-          <div className="rounded-xl border border-border bg-card p-8">
-            <h3 className="font-semibold text-lg mb-1">Business</h3>
-            <p className="text-sm text-muted-foreground mb-4">
-              For compliance-heavy orgs
+          <div className="border-r border-b border-border p-12 hover:bg-muted transition-colors">
+            <h3 className="text-xl font-bold tracking-widest uppercase mb-2">Level 3</h3>
+            <p className="text-xs font-mono text-muted-foreground mb-8 uppercase tracking-widest">
+              Absolute Authority
             </p>
-            <div className="mb-6">
-              <span className="text-4xl font-bold">$79</span>
-              <span className="text-muted-foreground">/mo</span>
+            <div className="mb-10 font-mono">
+              <span className="text-6xl font-black text-foreground">$79</span>
             </div>
-            <ul className="space-y-3 mb-8">
+            <ul className="space-y-4 mb-12">
               {[
-                "Unlimited services",
-                "Poll every 1 minute",
-                "1-year change history",
-                "All alert channels",
-                "Unlimited team members",
-                "SOC2 / HIPAA reports",
-                "Priority support",
+                "Infinite Nodes",
+                "1-min scan polling",
+                "1-year retention log",
+                "Total dispatch authority",
+                "Infinite Agents",
+                "SOC2 / HIPAA compliance",
+                "Priority comms channel",
               ].map((f, i) => (
-                <li key={i} className="flex items-center gap-2 text-sm">
-                  <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0" />
+                <li key={i} className="flex items-center gap-3 text-sm font-mono">
+                  <span className="w-1.5 h-1.5 bg-primary rounded-none shrink-0" />
                   {f}
                 </li>
               ))}
             </ul>
             <a
               href={isSignedIn ? "/dashboard" : "/register"}
-              className="block text-center rounded-lg border border-border px-4 py-2.5 text-sm font-medium hover:bg-muted transition-colors"
+              className="block text-center border border-border px-6 py-4 text-xs font-mono font-bold tracking-widest uppercase hover:bg-foreground hover:text-background transition-colors"
             >
-              {isSignedIn ? "Open Dashboard" : "Contact sales"}
+              {isSignedIn ? "ACCESS TERMINAL" : "CONTACT COMMAND"}
             </a>
           </div>
         </div>
@@ -566,27 +553,22 @@ function PricingSection({ isSignedIn }: { isSignedIn: boolean }) {
 
 function FinalCTASection({ isSignedIn }: { isSignedIn: boolean }) {
   return (
-    <section className="py-20 px-6">
-      <div className="mx-auto max-w-3xl text-center">
-        <div className="rounded-2xl border border-border bg-card p-12 relative overflow-hidden">
-          <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-primary/5 pointer-events-none" />
-          <div className="relative">
-            <Shield className="h-12 w-12 text-primary mx-auto mb-4" />
-            <h2 className="text-3xl font-bold mb-4">
-              Start watching your configs today
-            </h2>
-            <p className="text-muted-foreground mb-8 max-w-lg mx-auto">
-              Free to start. No credit card. Connect your first service in under
-              a minute.
-            </p>
-            <a
-              href={isSignedIn ? "/dashboard" : "/register"}
-              className="inline-flex items-center gap-2 rounded-lg bg-primary px-6 py-3 text-base font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
-            >
-              {isSignedIn ? "Open Dashboard" : "Sign In"} <ArrowRight className="h-4 w-4" />
-            </a>
-          </div>
-        </div>
+    <section className="py-32 px-12 bg-background border-b border-border">
+      <div className="mx-auto max-w-4xl text-left border border-border bg-card p-16">
+        <Shield className="h-16 w-16 text-primary mb-8" />
+        <h2 className="text-4xl md:text-5xl font-black mb-6 uppercase tracking-tighter text-foreground max-w-2xl">
+          INITIATE MONITORING PROTOCOL
+        </h2>
+        <p className="text-lg font-mono text-muted-foreground mb-12 max-w-xl leading-loose">
+          Clearance Level 1 is free forever. No credentials required.
+          Secure your first node in 60 seconds.
+        </p>
+        <a
+          href={isSignedIn ? "/dashboard" : "/register"}
+          className="inline-flex items-center gap-3 bg-destructive text-destructive-foreground px-8 py-5 text-sm font-mono font-bold tracking-widest uppercase hover:bg-destructive/90 transition-colors"
+        >
+          {isSignedIn ? "ACCESS TERMINAL" : "INITIALIZE SCAN"} <ArrowRight className="h-5 w-5" />
+        </a>
       </div>
     </section>
   );
@@ -594,54 +576,51 @@ function FinalCTASection({ isSignedIn }: { isSignedIn: boolean }) {
 
 function Footer() {
   return (
-    <footer className="border-t border-border px-6 py-12">
+    <footer className="px-12 py-20 bg-background">
       <div className="mx-auto max-w-7xl">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mb-8">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-12 mb-16">
           <div>
-            <div className="flex items-center gap-2 mb-4">
-              <Shield className="h-5 w-5 text-primary" />
-              <span className="font-semibold">DriftGuard</span>
+            <div className="flex items-center gap-4 mb-8">
+              <div className="w-8 h-8 bg-primary flex items-center justify-center">
+                <Shield className="h-4 w-4 text-primary-foreground" />
+              </div>
+              <span className="text-xl font-black uppercase tracking-tighter">Monitra</span>
             </div>
-            <p className="text-sm text-muted-foreground">
-              Catch SaaS config changes before they cause outages.
+            <p className="text-xs font-mono text-muted-foreground uppercase tracking-widest leading-loose">
+              Absolute configuration intelligence for the modern infrastructure.
             </p>
           </div>
           <div>
-            <h4 className="font-medium text-sm mb-3">Product</h4>
-            <ul className="space-y-2 text-sm text-muted-foreground">
-              <li><a href="#features" className="hover:text-foreground transition-colors">Features</a></li>
-              <li><a href="#integrations" className="hover:text-foreground transition-colors">Integrations</a></li>
-              <li><a href="#pricing" className="hover:text-foreground transition-colors">Pricing</a></li>
-              <li><a href="/login" className="hover:text-foreground transition-colors">Dashboard</a></li>
+            <h4 className="font-bold text-sm tracking-widest uppercase mb-6 text-foreground">Architecture</h4>
+            <ul className="space-y-4 text-xs font-mono text-muted-foreground uppercase tracking-widest">
+              <li><a href="#features" className="hover:text-primary transition-colors">Protocols</a></li>
+              <li><a href="#integrations" className="hover:text-primary transition-colors">Nodes</a></li>
+              <li><a href="#pricing" className="hover:text-primary transition-colors">Clearance</a></li>
+              <li><a href="/login" className="hover:text-primary transition-colors">Terminal Access</a></li>
             </ul>
           </div>
           <div>
-            <h4 className="font-medium text-sm mb-3">Resources</h4>
-            <ul className="space-y-2 text-sm text-muted-foreground">
-              <li><a href="#" className="hover:text-foreground transition-colors">Documentation</a></li>
-              <li><a href="#" className="hover:text-foreground transition-colors">API Reference</a></li>
-              <li><a href="#" className="hover:text-foreground transition-colors">Blog</a></li>
-              <li><a href="#" className="hover:text-foreground transition-colors">Status</a></li>
+            <h4 className="font-bold text-sm tracking-widest uppercase mb-6 text-foreground">Data Storage</h4>
+            <ul className="space-y-4 text-xs font-mono text-muted-foreground uppercase tracking-widest">
+              <li><a href="#" className="hover:text-primary transition-colors">Schematics</a></li>
+              <li><a href="#" className="hover:text-primary transition-colors">API Reference</a></li>
+              <li><a href="#" className="hover:text-primary transition-colors">Transmission Log</a></li>
+              <li><a href="#" className="hover:text-primary transition-colors">System Status</a></li>
             </ul>
           </div>
           <div>
-            <h4 className="font-medium text-sm mb-3">Company</h4>
-            <ul className="space-y-2 text-sm text-muted-foreground">
-              <li><a href="#" className="hover:text-foreground transition-colors">About</a></li>
-              <li><a href="#" className="hover:text-foreground transition-colors">Contact</a></li>
-              <li><a href="#" className="hover:text-foreground transition-colors">Privacy</a></li>
-              <li><a href="#" className="hover:text-foreground transition-colors">Terms</a></li>
+            <h4 className="font-bold text-sm tracking-widest uppercase mb-6 text-foreground">Command</h4>
+            <ul className="space-y-4 text-xs font-mono text-muted-foreground uppercase tracking-widest">
+              <li><a href="#" className="hover:text-primary transition-colors">Personnel</a></li>
+              <li><a href="#" className="hover:text-primary transition-colors">Signal Comm</a></li>
+              <li><a href="#" className="hover:text-primary transition-colors">Privacy Protocol</a></li>
+              <li><a href="#" className="hover:text-primary transition-colors">TOS</a></li>
             </ul>
           </div>
         </div>
-        <div className="border-t border-border pt-8 text-center text-sm text-muted-foreground">
-          © 2026 DriftGuard. Built by{" "}
-          <a
-            href="https://thenovastudio.be"
-            className="text-primary hover:underline"
-          >
-            The Nova Studio
-          </a>
+        <div className="border-t border-border pt-12 flex flex-col md:flex-row justify-between items-center text-xs font-mono text-muted-foreground uppercase tracking-widest">
+          <span>© 2026 MONITRA PROTOCOL.</span>
+          <span>BUILT BY <a href="https://thenovastudio.be" className="text-primary hover:text-foreground transition-colors ml-1">THE NOVA STUDIO</a></span>
         </div>
       </div>
     </footer>

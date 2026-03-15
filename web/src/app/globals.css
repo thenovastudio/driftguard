@@ -42,77 +42,42 @@
   --color-sidebar-ring: var(--sidebar-ring);
 }
 
-/* ── Light theme (default) ── */
-:root {
-  --radius: 0.625rem;
-  --background: oklch(0.98 0.005 260);
-  --foreground: oklch(0.15 0.01 260);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.15 0.01 260);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.15 0.01 260);
-  --primary: oklch(0.45 0.2 260);
-  --primary-foreground: oklch(0.98 0.005 260);
-  --secondary: oklch(0.94 0.01 260);
-  --secondary-foreground: oklch(0.2 0.01 260);
-  --muted: oklch(0.94 0.01 260);
-  --muted-foreground: oklch(0.5 0.01 260);
-  --accent: oklch(0.94 0.01 260);
-  --accent-foreground: oklch(0.2 0.01 260);
-  --destructive: oklch(0.55 0.2 25);
-  --destructive-foreground: oklch(0.98 0.005 260);
-  --border: oklch(0.88 0.01 260);
-  --input: oklch(0.88 0.01 260);
-  --ring: oklch(0.45 0.2 260);
-  --chart-1: oklch(0.45 0.2 260);
-  --chart-2: oklch(0.6 0.2 160);
-  --chart-3: oklch(0.55 0.15 300);
-  --chart-4: oklch(0.7 0.15 60);
-  --chart-5: oklch(0.6 0.2 200);
-  --sidebar: oklch(0.96 0.005 260);
-  --sidebar-foreground: oklch(0.15 0.01 260);
-  --sidebar-primary: oklch(0.45 0.2 260);
-  --sidebar-primary-foreground: oklch(0.98 0.005 260);
-  --sidebar-accent: oklch(0.94 0.01 260);
-  --sidebar-accent-foreground: oklch(0.2 0.01 260);
-  --sidebar-border: oklch(0.88 0.01 260);
-  --sidebar-ring: oklch(0.45 0.2 260);
-}
-
-/* ── Dark theme ── */
-.dark {
-  --background: oklch(0.12 0.01 260);
-  --foreground: oklch(0.95 0.01 260);
-  --card: oklch(0.15 0.01 260);
-  --card-foreground: oklch(0.95 0.01 260);
-  --popover: oklch(0.15 0.01 260);
-  --popover-foreground: oklch(0.95 0.01 260);
-  --primary: oklch(0.65 0.15 260);
-  --primary-foreground: oklch(0.12 0.01 260);
-  --secondary: oklch(0.2 0.01 260);
-  --secondary-foreground: oklch(0.9 0.01 260);
-  --muted: oklch(0.2 0.01 260);
-  --muted-foreground: oklch(0.6 0.01 260);
-  --accent: oklch(0.2 0.01 260);
-  --accent-foreground: oklch(0.9 0.01 260);
-  --destructive: oklch(0.55 0.2 25);
-  --destructive-foreground: oklch(0.95 0.01 260);
-  --border: oklch(0.25 0.01 260);
-  --input: oklch(0.25 0.01 260);
-  --ring: oklch(0.65 0.15 260);
-  --chart-1: oklch(0.65 0.15 260);
-  --chart-2: oklch(0.6 0.2 160);
-  --chart-3: oklch(0.55 0.15 300);
-  --chart-4: oklch(0.7 0.15 60);
-  --chart-5: oklch(0.6 0.2 200);
-  --sidebar: oklch(0.14 0.01 260);
-  --sidebar-foreground: oklch(0.95 0.01 260);
-  --sidebar-primary: oklch(0.65 0.15 260);
-  --sidebar-primary-foreground: oklch(0.12 0.01 260);
-  --sidebar-accent: oklch(0.2 0.01 260);
-  --sidebar-accent-foreground: oklch(0.9 0.01 260);
-  --sidebar-border: oklch(0.25 0.01 260);
-  --sidebar-ring: oklch(0.65 0.15 260);
+/* ── Monitra Brand System (Dark Mode Command Center) ── */
+:root, .dark {
+  --radius: 0rem;
+  --background: #0A0B0E;
+  --foreground: #F3EFE6;
+  --card: #0A0B0E;
+  --card-foreground: #F3EFE6;
+  --popover: #0A0B0E;
+  --popover-foreground: #F3EFE6;
+  --primary: #B3A0FF;
+  --primary-foreground: #0A0B0E;
+  /* Secondary / Cards usually slightly offset or distinct with borders */
+  --secondary: #0A0B0E; 
+  --secondary-foreground: #F3EFE6;
+  --muted: #0A0B0E;
+  --muted-foreground: #93C5FD;
+  --accent: #0A0B0E;
+  --accent-foreground: #93C5FD;
+  --destructive: #FFB37C;
+  --destructive-foreground: #0A0B0E;
+  --border: rgba(147, 197, 253, 0.1);
+  --input: rgba(147, 197, 253, 0.1);
+  --ring: #B3A0FF;
+  --chart-1: #B3A0FF;
+  --chart-2: #93C5FD;
+  --chart-3: #FFB37C;
+  --chart-4: #B3A0FF;
+  --chart-5: #93C5FD;
+  --sidebar: #0A0B0E;
+  --sidebar-foreground: #F3EFE6;
+  --sidebar-primary: #B3A0FF;
+  --sidebar-primary-foreground: #0A0B0E;
+  --sidebar-accent: #0A0B0E;
+  --sidebar-accent-foreground: #F3EFE6;
+  --sidebar-border: rgba(147, 197, 253, 0.1);
+  --sidebar-ring: #B3A0FF;
 }
 
 @layer base {
@@ -121,5 +86,18 @@
   }
   body {
     @apply bg-background text-foreground;
+    font-family: var(--font-inter, sans-serif);
+    line-height: 1.6;
+    letter-spacing: 0em;
+  }
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-geist-sans, sans-serif);
+    font-weight: 800; /* Heavy weights */
+    line-height: 1.1;
+    letter-spacing: -0.03em;
+  }
+  code, pre, .mono {
+    font-family: var(--font-jetbrains-mono, monospace);
+    letter-spacing: 0.02em;
   }
 }
