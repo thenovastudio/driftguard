@@ -10,6 +10,7 @@ import {
   ReactElement,
   useDeferredValue,
   memo,
+  useRef,
 } from "react";
 import { useUser, useClerk } from "@clerk/nextjs";
 import {
@@ -1023,14 +1024,18 @@ function LinkServiceModal({
 
 import { MenuBar } from "@/components/ui/glow-menu";
 
-const ServiceIntegrationCard = memo(({ service, initialKey, onSave }: { 
-  service: Service, 
-  initialKey: string,
-  onSave: (serviceId: string, apiKey: string) => Promise<string | null>
-}) => {
+interface ServiceIntegrationCardProps {
+  service: Service;
+  initialKey: string;
+  onSave: (serviceId: string, apiKey: string) => Promise<string | null>;
+  disabled?: boolean;
+}
+
+const ServiceIntegrationCard = memo(({ service, initialKey, onSave, disabled }: ServiceIntegrationCardProps) => {
   const [localKey, setLocalKey] = useState(initialKey);
   const [visible, setVisible] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [isLinking, setIsLinking] = useState(false);
 
   useEffect(() => {
     setLocalKey(initialKey);
@@ -1039,7 +1044,13 @@ const ServiceIntegrationCard = memo(({ service, initialKey, onSave }: {
   const catalogItem = SERVICE_CATALOG.find(s => s.id === service.id);
 
   const handleLink = async () => {
+    if (disabled && !localKey) {
+      alert("Plan Limit Reached: Please upgrade your subscription to link more nodes.");
+      return;
+    }
+    setIsLinking(true);
     const error = await onSave(service.id, localKey);
+    setIsLinking(false);
     if (!error) {
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
@@ -1103,14 +1114,17 @@ const ServiceIntegrationCard = memo(({ service, initialKey, onSave }: {
         <button
           type="button"
           onClick={handleLink}
+          disabled={isLinking || (disabled && !localKey)}
           className={cn(
             "rounded-lg px-4 py-2 text-xs font-black uppercase tracking-widest transition-all",
             saved 
               ? "bg-emerald-500 text-black" 
-              : "bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm shadow-primary/20"
+              : disabled && !localKey
+                ? "bg-muted text-muted-foreground cursor-not-allowed"
+                : "bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm shadow-primary/20"
           )}
         >
-          {saved ? "VERIFIED" : "LINK NODE"}
+          {saved ? "VERIFIED" : disabled && !localKey ? "LIMIT REACHED" : "LINK NODE"}
         </button>
         {localKey && (
           <button
@@ -1455,14 +1469,19 @@ const SettingsPage = memo(({
           )}
 
           <div className="space-y-3">
-            {services.map((service) => (
-              <ServiceIntegrationCard
-                key={service.id}
-                service={service}
-                initialKey={service.api_key || ""}
-                onSave={onSave}
-              />
-            ))}
+            {useMemo(() => services.map((service) => {
+              const connectedCount = services.filter(s => s.connected).length;
+              const isOverLimit = user && !service.connected && connectedCount >= user.plan_details.maxServices;
+              return (
+                <ServiceIntegrationCard
+                  key={service.id}
+                  service={service}
+                  initialKey={service.api_key || ""}
+                  onSave={onSave}
+                  disabled={!!isOverLimit}
+                />
+              );
+            }), [services, user, onSave])}
           </div>
         </div>
       )}
@@ -1832,6 +1851,12 @@ export default function Dashboard() {
   const [page, setPage] = useState<"dashboard" | "settings">("dashboard");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [services, setServices] = useState<Service[]>([]);
+  const deferredServices = useDeferredValue(services);
+  
+  // Decouple services from callbacks to kill lag
+  const servicesRef = useRef(services);
+  useEffect(() => { servicesRef.current = services; }, [services]);
+
   const [pollingStates, setPollingStates] = useState<
     Record<string, "idle" | "polling" | "connected">
   >({});
@@ -1986,29 +2011,7 @@ export default function Dashboard() {
     fetchUserSettings();
   }, [authChecked, fetchServices, fetchChanges, fetchUserSettings]);
 
-  // --- Auto-Polling Logic ---
-  useEffect(() => {
-    if (!authChecked || page !== "dashboard") return;
-
-    const intervalId = setInterval(() => {
-      services.forEach(service => {
-        if (!service.connected) return;
-        
-        const lastPolled = service.last_polled_at ? new Date(service.last_polled_at).getTime() : 0;
-        const now = Date.now();
-        const planInterval = user.plan_details.pollIntervalMs;
-
-        if (now - lastPolled >= planInterval) {
-          console.log(`[AUTO_POLL] Trigerring automated audit for node: ${service.name}`);
-          handlePoll(service.id);
-        }
-      });
-    }, 60000); // Check every minute
-
-    return () => clearInterval(intervalId);
-  }, [authChecked, page, services, user.plan_details.pollIntervalMs]);
-
-  const handlePoll = async (serviceId: string) => {
+  const handlePoll = useCallback(async (serviceId: string) => {
     setPollingStates((prev) => ({ ...prev, [serviceId]: "polling" }));
 
     try {
@@ -2018,7 +2021,6 @@ export default function Dashboard() {
       const data = await res.json();
 
       if (!res.ok) {
-        // Show error (rate limit, not linked, etc.)
         setPollResult({ service: serviceId, count: -1 });
         setTimeout(() => setPollResult(null), 5000);
         setPollingStates((prev) => ({ ...prev, [serviceId]: "connected" }));
@@ -2039,13 +2041,44 @@ export default function Dashboard() {
     } catch {
       setPollingStates((prev) => ({ ...prev, [serviceId]: "idle" }));
     }
-  };
+  }, [fetchServices, fetchChanges]);
 
-  const handleViewChanges = (serviceId: string) => {
+  const handleViewChanges = useCallback((serviceId: string) => {
     setFilterService((prev) => (prev === serviceId ? null : serviceId));
-  };
+  }, []);
+
+  // --- Auto-Polling Logic ---
+  const planInterval = user.plan_details.pollIntervalMs;
+  useEffect(() => {
+    if (!authChecked || page !== "dashboard" || servicesRef.current.length === 0) return;
+
+    const intervalId = setInterval(() => {
+      servicesRef.current.forEach((service: Service) => {
+        if (!service.connected) return;
+        
+        const lastPolled = service.last_polled_at ? new Date(service.last_polled_at).getTime() : 0;
+        const now = Date.now();
+
+        if (now - lastPolled >= planInterval) {
+          console.log(`[AUTO_POLL] Trigerring automated audit for node: ${service.name}`);
+          handlePoll(service.id);
+        }
+      });
+    }, 60000); // Check every minute
+
+    return () => clearInterval(intervalId);
+  }, [authChecked, page, planInterval, handlePoll]);
 
   const handleLinkService = useCallback(async (serviceId: string, apiKey: string) => {
+    // Enforcement: Check if user is trying to LINK a new service
+    const currentServices = servicesRef.current;
+    const connectedCount = currentServices.filter((s: Service) => s.connected).length;
+    const isNewLink = apiKey && !currentServices.find((s: Service) => s.id === serviceId)?.connected;
+
+    if (isNewLink && connectedCount >= user.plan_details.maxServices) {
+      return `Sequence Aborted: Your ${user.plan_details.name} plan is limited to ${user.plan_details.maxServices} nodes. Please upgrade to expand your monitoring mesh.`;
+    }
+
     try {
       const res = await fetch(`/api/services`, {
         method: "POST",
@@ -2060,7 +2093,7 @@ export default function Dashboard() {
     } catch {
       return "Network error: check your connection and try again.";
     }
-  }, [fetchServices]);
+  }, [fetchServices, user.plan_details]);
 
   const handleSaveUserSettings = useCallback(async (settings: {
     slack_webhook_url: string;
@@ -2341,7 +2374,7 @@ export default function Dashboard() {
         <div className="max-w-7xl mx-auto px-6 py-8">
           {page === "settings" ? (
             <SettingsPage
-              services={services}
+              services={deferredServices}
               user={user}
               userSettings={userSettings}
               onSave={handleLinkService}
@@ -2396,6 +2429,16 @@ export default function Dashboard() {
                       View changes ↓
                     </a>
                   )}
+                </div>
+              )}
+
+              {/* Capacity Status */}
+              {user && services.filter(s => s.connected).length > user.plan_details.maxServices && (
+                <div className="mb-6 rounded-lg border border-amber-500/30 bg-amber-500/10 text-amber-200 px-4 py-3 text-sm flex items-center gap-3 animate-in fade-in zoom-in duration-300">
+                  <AlertTriangle className="h-4 w-4 shrink-0 text-amber-500" />
+                  <span>
+                    <strong className="text-amber-500">Node Capacity Warning:</strong> You are currently monitoring {services.filter(s => s.connected).length} services, which exceeds your {user.plan_details.name} plan limit ({user.plan_details.maxServices}). Please upgrade or unlink nodes to restore full automation.
+                  </span>
                 </div>
               )}
 

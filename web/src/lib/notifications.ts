@@ -90,7 +90,7 @@ async function sendEmailNotification(userId: string, text: string) {
     }
 
     await resend.emails.send({
-      from: 'DriftGuard Alerts <alerts@driftguard.io>',
+      from: 'DriftGuard <onboarding@resend.dev>',
       to: email,
       subject: '🚨 DRIFT_DETECTED: Configuration Change Protocol',
       text: text,
