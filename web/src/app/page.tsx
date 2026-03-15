@@ -172,9 +172,7 @@ function Nav({ isSignedIn }: { isSignedIn: boolean }) {
     <nav className="fixed top-0 left-0 right-0 z-50 border-b border-border bg-background">
       <div className="mx-auto flex max-w-7xl items-center justify-between px-12 py-6">
         <a href="/" className="flex items-center gap-4">
-          <div className="flex h-10 w-10 items-center justify-center bg-primary border-none">
-            <Shield className="h-5 w-5 text-primary-foreground" />
-          </div>
+          <img src="/logo.png" alt="Monitra Logo" className="h-8 w-8 object-contain" />
           <span className="text-2xl font-black uppercase tracking-tighter">Monitra</span>
         </a>
 
@@ -555,7 +553,7 @@ function FinalCTASection({ isSignedIn }: { isSignedIn: boolean }) {
   return (
     <section className="py-32 px-12 bg-background border-b border-border">
       <div className="mx-auto max-w-4xl text-left border border-border bg-card p-16">
-        <Shield className="h-16 w-16 text-primary mb-8" />
+        <img src="/logo.png" alt="Monitra Logo" className="h-20 w-20 object-contain mb-8" />
         <h2 className="text-4xl md:text-5xl font-black mb-6 uppercase tracking-tighter text-foreground max-w-2xl">
           INITIATE MONITORING PROTOCOL
         </h2>
@@ -581,9 +579,7 @@ function Footer() {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-12 mb-16">
           <div>
             <div className="flex items-center gap-4 mb-8">
-              <div className="w-8 h-8 bg-primary flex items-center justify-center">
-                <Shield className="h-4 w-4 text-primary-foreground" />
-              </div>
+              <img src="/logo.png" alt="Monitra Logo" className="h-8 w-8 object-contain" />
               <span className="text-xl font-black uppercase tracking-tighter">Monitra</span>
             </div>
             <p className="text-xs font-mono text-muted-foreground uppercase tracking-widest leading-loose">

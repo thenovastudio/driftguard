@@ -29,8 +29,19 @@ export async function POST(req: Request) {
     }
 
     // Cancel at period end
-    await stripe.subscriptions.update(subscriptionId, {
-      cancel_at_period_end: true,
+    if (process.env.STRIPE_SECRET_KEY && subscriptionId !== "simulated") {
+      await stripe.subscriptions.update(subscriptionId, {
+        cancel_at_period_end: true,
+      });
+    }
+
+    // Downgrade to free immediately in metadata for simple local state
+    await client.users.updateUserMetadata(userId, {
+      publicMetadata: {
+        stripeSubscriptionId: null,
+        stripeSubscriptionStatus: "cancelled",
+        stripePlanKey: "free"
+      }
     });
 
     return NextResponse.json({ success: true });

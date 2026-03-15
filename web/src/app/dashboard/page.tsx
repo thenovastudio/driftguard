@@ -9,6 +9,7 @@ import {
   isValidElement,
   ReactElement,
   useDeferredValue,
+  memo,
 } from "react";
 import { useUser, useClerk } from "@clerk/nextjs";
 import {
@@ -1022,8 +1023,189 @@ function LinkServiceModal({
 
 import { MenuBar } from "@/components/ui/glow-menu";
 
-// ── Settings Page ─────────────────────────────────────────────
-function SettingsPage({
+const ServiceIntegrationCard = memo(({ service, initialKey, onSave }: { 
+  service: Service, 
+  initialKey: string,
+  onSave: (serviceId: string, apiKey: string) => Promise<string | null>
+}) => {
+  const [localKey, setLocalKey] = useState(initialKey);
+  const [visible, setVisible] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  useEffect(() => {
+    setLocalKey(initialKey);
+  }, [initialKey]);
+
+  const catalogItem = SERVICE_CATALOG.find(s => s.id === service.id);
+
+  const handleLink = async () => {
+    const error = await onSave(service.id, localKey);
+    if (!error) {
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    } else {
+      alert(error);
+    }
+  };
+
+  return (
+    <div className="rounded-xl border border-border bg-card p-5 hover:border-primary/20 transition-all">
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-lg border border-border bg-muted flex items-center justify-center text-primary">
+            {catalogItem?.icon || <Activity className="h-4 w-4" />}
+          </div>
+          <div>
+            <h3 className="font-bold text-sm uppercase tracking-tight">{service.name}</h3>
+            <div className="flex items-center gap-2 mt-0.5">
+              {service.connected ? (
+                <span className="flex items-center gap-1 text-[9px] font-black text-emerald-400 uppercase tracking-[0.2em]">
+                  <CheckCircle2 className="h-2.5 w-2.5" /> LINKED
+                </span>
+              ) : (
+                <span className="flex items-center gap-1 text-[9px] font-black text-muted-foreground uppercase tracking-[0.2em] opacity-50">
+                  <AlertTriangle className="h-2.5 w-2.5" /> DISCONNECTED
+                </span>
+              )}
+            </div>
+          </div>
+        </div>
+        {catalogItem?.docsUrl && (
+          <a
+            href={catalogItem.docsUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-1.5 text-[9px] font-black uppercase tracking-[0.2em] text-primary hover:text-primary/80 transition-colors"
+          >
+            DOCS <ExternalLink className="h-2.5 w-2.5" />
+          </a>
+        )}
+      </div>
+
+      <div className="flex items-center gap-2">
+        <div className="relative flex-1 group">
+          <Key className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground transition-colors group-focus-within:text-primary" />
+          <input
+            type={visible ? "text" : "password"}
+            value={localKey}
+            onChange={(e) => setLocalKey(e.target.value)}
+            placeholder={`Enter authorized token for ${service.name}...`}
+            className="w-full rounded-lg border border-border bg-background pl-9 pr-9 py-2 text-xs font-mono focus:outline-none focus:ring-1 focus:ring-primary/40 focus:border-primary/40 transition-all"
+          />
+          <button
+            type="button"
+            onClick={() => setVisible(!visible)}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+          >
+            {visible ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+          </button>
+        </div>
+        <button
+          type="button"
+          onClick={handleLink}
+          className={cn(
+            "rounded-lg px-4 py-2 text-xs font-black uppercase tracking-widest transition-all",
+            saved 
+              ? "bg-emerald-500 text-black" 
+              : "bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm shadow-primary/20"
+          )}
+        >
+          {saved ? "VERIFIED" : "LINK NODE"}
+        </button>
+        {localKey && (
+          <button
+            type="button"
+            onClick={() => {
+              if (confirm(`Confirm disconnect sequence for ${service.name}?`)) {
+                setLocalKey("");
+                onSave(service.id, "");
+              }
+            }}
+            className="rounded-lg border border-border px-3 py-2 text-muted-foreground hover:text-destructive hover:border-destructive/40 transition-all"
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+          </button>
+        )}
+      </div>
+    </div>
+  );
+});
+ServiceIntegrationCard.displayName = "ServiceIntegrationCard";
+
+const PLANS_LIST = [
+  {
+    key: "free",
+    name: "Free",
+    price: "$0",
+    period: "/mo",
+    desc: "Basic visibility for personal projects",
+    priceId: undefined,
+    features: [
+      "1 service",
+      "1-hour polling",
+      "3-day history",
+      "No alerts",
+    ],
+  },
+  {
+    key: "plus",
+    name: "Plus",
+    price: "$4.99",
+    period: "/mo",
+    desc: "For essential monitoring",
+    priceId: process.env.NEXT_PUBLIC_STRIPE_PLUS_PRICE_ID,
+    features: [
+      "3 services",
+      "30-min polling",
+      "7-day history",
+      "Email alerts",
+    ],
+  },
+  {
+    key: "pro",
+    name: "Pro",
+    price: "$29",
+    period: "/mo",
+    desc: "For growing teams",
+    popular: true,
+    priceId: process.env.NEXT_PUBLIC_STRIPE_PRO_PRICE_ID,
+    features: [
+      "15 services",
+      "5-min polling",
+      "90-day history",
+      "Slack + email + webhook alerts",
+      "5 team members",
+      "Compliance exports",
+    ],
+  },
+  {
+    key: "business",
+    name: "Business",
+    price: "$79",
+    period: "/mo",
+    desc: "For compliance-heavy orgs",
+    priceId: process.env.NEXT_PUBLIC_STRIPE_BUSINESS_PRICE_ID,
+    features: [
+      "Unlimited services",
+      "1-min polling",
+      "1-year history",
+      "All alert channels",
+      "Unlimited team members",
+      "SOC2 / HIPAA reports",
+      "Priority support",
+    ],
+  },
+];
+
+const TABS: TabItem[] = [
+  { title: "Billing & Plan", icon: CreditCard },
+  { type: "separator" },
+  { title: "Linked Services", icon: Shield },
+  { type: "separator" },
+  { title: "Notifications", icon: Bell },
+];
+
+const SettingsPage = memo(({
   services,
   user,
   userSettings,
@@ -1047,13 +1229,9 @@ function SettingsPage({
     email_notifications_enabled: boolean;
   }) => void;
   onCheckout: (priceId?: string) => void;
-}) {
-  const [keys, setKeys] = useState<Record<string, string>>({});
-  const [visible, setVisible] = useState<Record<string, boolean>>({});
-  const [saved, setSaved] = useState<Record<string, boolean>>({});
+}) => {
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   const [activeTab, setActiveTab] = useState("Billing & Plan");
-
   const [localSettings, setLocalSettings] = useState(userSettings);
   const [settingsSaved, setSettingsSaved] = useState(false);
 
@@ -1061,101 +1239,41 @@ function SettingsPage({
     setLocalSettings(userSettings);
   }, [userSettings]);
 
-  useEffect(() => {
-    const initial: Record<string, string> = {};
-    services.forEach((s) => {
-      initial[s.id] = s.api_key || "";
-    });
-    setKeys(initial);
-  }, [services]);
-
-  const handleSave = (serviceId: string) => {
-    onSave(serviceId, keys[serviceId] || "");
-    setSaved((prev) => ({ ...prev, [serviceId]: true }));
-    setTimeout(() => {
-      setSaved((prev) => ({ ...prev, [serviceId]: false }));
-    }, 2000);
-  };
-
-  const PLANS_LIST = [
-    {
-      key: "plus",
-      name: "Monitra Plus",
-      price: "$4.99",
-      period: "/mo",
-      desc: "For essential monitoring",
-      priceId: process.env.NEXT_PUBLIC_STRIPE_PLUS_PRICE_ID,
-      features: [
-        "3 services",
-        "30-min polling",
-        "7-day history",
-        "Email alerts",
-      ],
-    },
-    {
-      key: "pro",
-      name: "Pro",
-      price: "$29",
-      period: "/mo",
-      desc: "For growing teams",
-      popular: true,
-      priceId: process.env.NEXT_PUBLIC_STRIPE_PRO_PRICE_ID,
-      features: [
-        "15 services",
-        "5-min polling",
-        "90-day history",
-        "Slack + email + webhook alerts",
-        "5 team members",
-        "Compliance exports",
-      ],
-    },
-    {
-      key: "business",
-      name: "Business",
-      price: "$79",
-      period: "/mo",
-      desc: "For compliance-heavy orgs",
-      priceId: process.env.NEXT_PUBLIC_STRIPE_BUSINESS_PRICE_ID,
-      features: [
-        "Unlimited services",
-        "1-min polling",
-        "1-year history",
-        "All alert channels",
-        "Unlimited team members",
-        "SOC2 / HIPAA reports",
-        "Priority support",
-      ],
-    },
-  ];
-
-  const tabs: TabItem[] = [
-    { title: "Billing & Plan", icon: CreditCard },
-    { type: "separator" },
-    { title: "Linked Services", icon: Shield },
-    { type: "separator" },
-    { title: "Notifications", icon: Bell },
-  ];
-
-  const handleTabChange = (index: number | null) => {
+  const handleTabChange = useCallback((index: number | null) => {
     if (index === 0) setActiveTab("Billing & Plan");
     if (index === 2) setActiveTab("Linked Services");
     if (index === 4) setActiveTab("Notifications");
+  }, []);
+
+  const handleCancelSubscription = async () => {
+    try {
+      const res = await fetch("/api/stripe/cancel", { method: "POST" });
+      const data = await res.json();
+      if (data.success) {
+        window.location.reload();
+      } else {
+        alert(data.error || "Failed to cancel subscription");
+      }
+    } catch (e) {
+      alert("Failed to cancel subscription.");
+    }
+    setShowCancelConfirm(false);
   };
 
   return (
     <div>
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="text-2xl font-bold mb-2">Settings</h1>
+          <h1 className="text-2xl font-bold mb-2 text-primary uppercase tracking-tighter">Integration Hub</h1>
           <p className="text-muted-foreground">
             Manage your plan, billing, and service connections
           </p>
         </div>
         <div className="flex items-center gap-4">
           <ExpandableTabs
-            tabs={tabs}
+            tabs={TABS}
             activeColor="text-primary"
-            defaultSelected={activeTab === "Billing & Plan" ? 0 : 2}
+            defaultSelected={activeTab === "Billing & Plan" ? 0 : activeTab === "Linked Services" ? 2 : 4}
             onChange={handleTabChange}
           />
         </div>
@@ -1163,8 +1281,8 @@ function SettingsPage({
 
       {activeTab === "Billing & Plan" && user && (
         <div className="mb-10 fade-in-0 animate-in slide-in-from-bottom-4 duration-300">
-          <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
-            <CreditCard className="h-5 w-5" /> Billing & Plan
+          <h2 className="text-lg font-semibold mb-4 flex items-center gap-2 uppercase tracking-tight">
+            <CreditCard className="h-5 w-5 text-primary" /> Billing & Plan
           </h2>
 
           {/* Current plan card */}
@@ -1173,16 +1291,16 @@ function SettingsPage({
               <div>
                 <div className="flex items-center gap-2 mb-1">
                   <Crown className="h-4 w-4 text-amber-400" />
-                  <span className="font-semibold">
+                  <span className="font-semibold uppercase tracking-widest text-xs">
                     {user.plan_details.name} Plan
                   </span>
                   {user.plan === "trial" && (
-                    <span className="rounded-full bg-amber-500/20 text-amber-400 px-2 py-0.5 text-xs font-medium">
+                    <span className="rounded-full bg-amber-500/20 text-amber-400 px-2 py-0.5 text-[10px] font-black uppercase">
                       14-day trial
                     </span>
                   )}
                 </div>
-                <p className="text-xs text-muted-foreground">
+                <p className="text-[10px] text-muted-foreground uppercase font-mono">
                   {user.plan_details.maxServices === 999
                     ? "Unlimited"
                     : user.plan_details.maxServices}{" "}
@@ -1195,7 +1313,7 @@ function SettingsPage({
               {user.plan_details.features.map((f, i) => (
                 <span
                   key={i}
-                  className="inline-flex items-center gap-1 rounded-md bg-muted/50 border border-border px-2.5 py-1 text-xs"
+                  className="inline-flex items-center gap-1 rounded-md bg-muted/50 border border-border px-2.5 py-1 text-[10px] font-bold uppercase tracking-widest"
                 >
                   <CheckCircle2 className="h-3 w-3 text-emerald-400" /> {f}
                 </span>
@@ -1204,7 +1322,7 @@ function SettingsPage({
           </div>
 
           {/* Plan comparison grid */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
             {PLANS_LIST.map((plan) => {
               const isCurrent =
                 user.plan === plan.key ||
@@ -1244,32 +1362,48 @@ function SettingsPage({
                     ))}
                   </ul>
                   {isCurrent ? (
-                    <div className="text-center rounded-lg border border-primary/30 bg-primary/10 px-3 py-2 text-xs font-medium text-primary mt-auto mt-4">
-                      Current plan
+                    <div className="flex flex-col gap-2 mt-auto pt-4">
+                      <div className="text-center rounded-lg border border-primary/30 bg-primary/10 px-3 py-2 text-xs font-medium text-primary">
+                        Current plan
+                      </div>
+                      {plan.key !== "free" && (
+                        <button
+                          onClick={() => setShowCancelConfirm(true)}
+                          className="w-full rounded-lg border border-destructive/30 px-3 py-2 text-xs font-medium text-destructive hover:bg-destructive/10 transition-colors"
+                        >
+                          Cancel Subscription
+                        </button>
+                      )}
                     </div>
                   ) : (
                     <div className="mt-auto pt-4 flex flex-col gap-2">
                       <button
                         className="w-full rounded-lg bg-primary px-3 py-2 text-xs font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
                         onClick={() => {
-                          onCheckout(plan.priceId);
+                          if (plan.key === "free") {
+                            // Already on free, but just in case, this button shouldn't show if isCurrent
+                            alert("You are already on the Free plan.");
+                          } else {
+                            onCheckout(plan.priceId);
+                          }
                         }}
                       >
-                        {user.plan === "free" && plan.key === "plus"
-                          ? `Start Monitra ${plan.name}` :
+                        {plan.key === "free" ? "Downgrade to Free" : 
+                         user.plan === "free" && plan.key === "plus"
+                          ? `Start ${plan.name}` :
                          (user.plan === "free" || user.plan === "plus") && plan.key !== "free" && plan.key !== "plus"
                           ? `Start 14-day free trial`
                           : PLANS_LIST.findIndex(
-                                (p) =>
-                                  p.key === user.plan ||
-                                  (user.plan === "trial" && p.key === "pro") ||
-                                  (user.plan === "free" && p.key === "plus"),
-                              ) >
-                              PLANS_LIST.findIndex((p) => p.key === plan.key)
-                            ? `Downgrade to ${plan.name}`
-                            : `Upgrade to ${plan.name}`}
+                                 (p) =>
+                                   p.key === user.plan ||
+                                   (user.plan === "trial" && p.key === "pro") ||
+                                   (user.plan === "free" && p.key === "plus"),
+                               ) >
+                               PLANS_LIST.findIndex((p) => p.key === plan.key)
+                             ? `Downgrade to ${plan.name}`
+                             : `Upgrade to ${plan.name}`}
                       </button>
-                      {(user.plan === "free" || user.plan === "plus") && plan.key !== "free" && plan.key !== "plus" && (
+                      {plan.key !== "free" && (user.plan === "free" || user.plan === "plus") && plan.key !== "plus" && (
                         <p className="text-[10px] text-center text-muted-foreground leading-tight">
                           Requires credit card via Stripe.
                           <br />
@@ -1283,200 +1417,95 @@ function SettingsPage({
             })}
           </div>
 
-          {/* Cancel subscription */}
-          {(user.plan !== "free" && user.plan !== "plus") && (
-            <div className="rounded-xl border border-border bg-card p-5">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="font-semibold text-sm mb-0.5">
-                    Cancel subscription
-                  </h3>
-                  <p className="text-xs text-muted-foreground">
-                    You&apos;ll be downgraded to Monitra Plus at the end of
-                    your billing cycle.
-                  </p>
-                </div>
-                {!showCancelConfirm ? (
-                  <button
-                    onClick={() => setShowCancelConfirm(true)}
-                    className="rounded-lg border border-destructive/30 px-4 py-2 text-xs font-medium text-destructive hover:bg-destructive/10 transition-colors"
-                  >
-                    Cancel plan
-                  </button>
-                ) : (
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={async () => {
-                        try {
-                          const res = await fetch("/api/stripe/cancel", { method: "POST" });
-                          const data = await res.json();
-                          if (data.success) {
-                            alert("Subscription successfully set to cancel at period end.");
-                            window.location.reload();
-                          } else {
-                            alert(data.error || "Failed to cancel subscription");
-                          }
-                        } catch (e) {
-                          alert("Failed to cancel subscription.");
-                        }
-                        setShowCancelConfirm(false);
-                      }}
-                      className="rounded-lg bg-destructive px-4 py-2 text-xs font-medium text-destructive-foreground hover:bg-destructive/90 transition-colors"
-                    >
-                      Yes, cancel
-                    </button>
-                    <button
-                      onClick={() => setShowCancelConfirm(false)}
-                      className="rounded-lg border border-border px-4 py-2 text-xs font-medium text-muted-foreground hover:bg-muted transition-colors"
-                    >
-                      Keep plan
-                    </button>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
         </div>
       )}
 
       {activeTab === "Linked Services" && (
         <div className="fade-in-0 animate-in slide-in-from-bottom-4 duration-300">
-          <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
-            <Shield className="h-5 w-5" /> Linked Services
+          <h2 className="text-lg font-bold mb-4 flex items-center gap-2 uppercase tracking-tight">
+            <Shield className="h-5 w-5 text-primary" /> Service Configuration
           </h2>
 
           {/* Plan limits banner */}
           {user && (
-            <div className="rounded-lg border border-border bg-muted/30 p-4 mb-6">
+            <div className="rounded-xl border border-border bg-muted/30 p-5 mb-8">
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4 text-sm">
-                  <span className="text-muted-foreground">
-                    Services:{" "}
-                    <strong className="text-foreground">
-                      {services.filter((s) => s.connected).length}
-                    </strong>{" "}
-                    /{" "}
-                    {user.plan_details.maxServices === 999
-                      ? "∞"
-                      : user.plan_details.maxServices}
-                  </span>
-                  <span className="text-muted-foreground">
-                    Poll interval:{" "}
-                    <strong className="text-foreground">
-                      {user.plan_details.pollIntervalMs / 60000}min
-                    </strong>
-                  </span>
-                  <span className="text-muted-foreground">
-                    History:{" "}
-                    <strong className="text-foreground">
-                      {user.plan_details.historyDays}d
-                    </strong>
-                  </span>
+                <div className="flex items-center gap-8 text-[10px] font-black uppercase tracking-widest">
+                  <div className="flex flex-col gap-1">
+                    <span className="text-muted-foreground">Active_Nodes</span>
+                    <span className="text-foreground text-sm">
+                      {services.filter((s) => s.connected).length} / {user.plan_details.maxServices === 999 ? "MAX" : user.plan_details.maxServices}
+                    </span>
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <span className="text-muted-foreground">Poll_Interval</span>
+                    <span className="text-foreground text-sm">
+                      {user.plan_details.pollIntervalMs / 60000}m
+                    </span>
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <span className="text-muted-foreground">Log_Retention</span>
+                    <span className="text-foreground text-sm">
+                      {user.plan_details.historyDays} Days
+                    </span>
+                  </div>
                 </div>
               </div>
             </div>
           )}
 
-          <div className="space-y-6">
+          <div className="space-y-3">
             {services.map((service) => (
-              <div
+              <ServiceIntegrationCard
                 key={service.id}
-                className="rounded-xl border border-border bg-card p-6"
-              >
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center gap-3">
-                    <div className="w-fit rounded-lg border-[0.75px] border-border bg-muted p-2">
-                      {SERVICE_ICONS[service.id] || (
-                        <Activity className="h-4 w-4" />
-                      )}
-                    </div>
-                    <div>
-                      <h3 className="font-semibold">{service.name}</h3>
-                      <div className="flex items-center gap-2 mt-0.5">
-                        {service.connected ? (
-                          <span className="flex items-center gap-1 text-xs text-emerald-400">
-                            <CheckCircle2 className="h-3 w-3" />
-                            Linked
-                          </span>
-                        ) : (
-                          <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                            <AlertTriangle className="h-3 w-3" />
-                            Not linked
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                  <a
-                    href={SERVICE_DOCS[service.id]}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-1 text-xs text-primary hover:underline"
-                  >
-                    Get API key <ExternalLink className="h-3 w-3" />
-                  </a>
-                </div>
-
-                {/* API key input */}
-                <div className="flex items-center gap-3">
-                  <div className="relative flex-1">
-                    <Key className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <input
-                      type={visible[service.id] ? "text" : "password"}
-                      value={keys[service.id] || ""}
-                      onChange={(e) =>
-                        setKeys((prev) => ({
-                          ...prev,
-                          [service.id]: e.target.value,
-                        }))
-                      }
-                      placeholder={`Enter ${service.name} API key`}
-                      autoComplete="off"
-                      name={`api-key-${service.id}`}
-                      className="w-full rounded-lg border border-border bg-background pl-10 pr-10 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all"
-                    />
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setVisible((prev) => ({
-                          ...prev,
-                          [service.id]: !prev[service.id],
-                        }))
-                      }
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-                    >
-                      {visible[service.id] ? (
-                        <EyeOff className="h-4 w-4" />
-                      ) : (
-                        <Eye className="h-4 w-4" />
-                      )}
-                    </button>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => handleSave(service.id)}
-                    className="rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors whitespace-nowrap"
-                  >
-                    {saved[service.id] ? "Saved!" : "Save"}
-                  </button>
-                  {keys[service.id] && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setKeys((prev) => ({ ...prev, [service.id]: "" }));
-                        onSave(service.id, "");
-                      }}
-                      className="rounded-lg border border-border px-3 py-2.5 text-sm text-muted-foreground hover:text-destructive hover:border-destructive transition-colors"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
-                  )}
-                </div>
-              </div>
+                service={service}
+                initialKey={service.api_key || ""}
+                onSave={onSave}
+              />
             ))}
           </div>
         </div>
       )}
+
+      <AnimatePresence>
+        {showCancelConfirm && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md"
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="relative max-w-sm w-full bg-card border border-border p-8 rounded-3xl shadow-2xl text-center"
+            >
+              <div className="w-16 h-16 rounded-full bg-destructive/10 flex items-center justify-center text-destructive mx-auto mb-6">
+                <Trash2 className="h-8 w-8" />
+              </div>
+              <h3 className="text-xl font-bold mb-2">Cancel {user.plan_details.name}?</h3>
+              <p className="text-muted-foreground text-sm mb-8 leading-relaxed">
+                You will be immediately downgraded to the **Free plan**. This will limit your monitoring capacity to 1 service and disable advanced alerts.
+              </p>
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  onClick={() => setShowCancelConfirm(false)}
+                  className="px-4 py-3 rounded-xl border border-border font-bold text-sm hover:bg-muted transition-colors"
+                >
+                  KEEP PLAN
+                </button>
+                <button
+                  onClick={handleCancelSubscription}
+                  className="px-4 py-3 rounded-xl bg-destructive text-destructive-foreground font-bold text-sm hover:bg-destructive/90 transition-colors"
+                >
+                  YES, CANCEL
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {activeTab === "Notifications" && (
         <div className="fade-in-0 animate-in slide-in-from-bottom-4 duration-300">
@@ -1507,7 +1536,7 @@ function SettingsPage({
             <div
               className={cn(
                 "rounded-xl border p-6 flex flex-col gap-4 transition-all",
-                user.plan === "free"
+                (user.plan === "free" || user.plan === "plus")
                   ? "opacity-50 cursor-not-allowed border-border bg-muted/20"
                   : "border-border bg-card hover:border-primary/20",
               )}
@@ -1526,7 +1555,7 @@ function SettingsPage({
                     </p>
                   </div>
                 </div>
-                {user.plan === "free" && (
+                {(user.plan === "free" || user.plan === "plus") && (
                   <span className="text-[10px] font-black border border-border px-2 py-1 rounded bg-muted/30">
                     PRO_CLEARANCE
                   </span>
@@ -1535,7 +1564,7 @@ function SettingsPage({
               <input
                 type="text"
                 value={localSettings.slack_webhook_url}
-                disabled={user.plan === "free"}
+                disabled={user.plan === "free" || user.plan === "plus"}
                 onChange={(e) =>
                   setLocalSettings({
                     ...localSettings,
@@ -1551,7 +1580,7 @@ function SettingsPage({
             <div
               className={cn(
                 "rounded-xl border p-6 flex flex-col gap-4 transition-all",
-                user.plan === "free"
+                (user.plan === "free" || user.plan === "plus")
                   ? "opacity-50 cursor-not-allowed border-border bg-muted/20"
                   : "border-border bg-card hover:border-primary/20",
               )}
@@ -1570,7 +1599,7 @@ function SettingsPage({
                     </p>
                   </div>
                 </div>
-                {user.plan === "free" && (
+                {(user.plan === "free" || user.plan === "plus") && (
                   <span className="text-[10px] font-black border border-border px-2 py-1 rounded bg-muted/30">
                     PRO_CLEARANCE
                   </span>
@@ -1579,7 +1608,7 @@ function SettingsPage({
               <input
                 type="text"
                 value={localSettings.discord_webhook_url}
-                disabled={user.plan === "free"}
+                disabled={user.plan === "free" || user.plan === "plus"}
                 onChange={(e) =>
                   setLocalSettings({
                     ...localSettings,
@@ -1595,7 +1624,7 @@ function SettingsPage({
             <div
               className={cn(
                 "rounded-xl border p-6 flex flex-col gap-4 transition-all",
-                user.plan === "free"
+                (user.plan === "free" || user.plan === "plus")
                   ? "opacity-50 cursor-not-allowed border-border bg-muted/20"
                   : "border-border bg-card hover:border-primary/20",
               )}
@@ -1614,7 +1643,7 @@ function SettingsPage({
                     </p>
                   </div>
                 </div>
-                {user.plan === "free" && (
+                {(user.plan === "free" || user.plan === "plus") && (
                   <span className="text-[10px] font-black border border-border px-2 py-1 rounded bg-muted/30">
                     PRO_CLEARANCE
                   </span>
@@ -1623,7 +1652,7 @@ function SettingsPage({
               <input
                 type="text"
                 value={localSettings.outbound_webhook_url}
-                disabled={user.plan === "free"}
+                disabled={user.plan === "free" || user.plan === "plus"}
                 onChange={(e) =>
                   setLocalSettings({
                     ...localSettings,
@@ -1701,14 +1730,107 @@ function SettingsPage({
       )}
     </div>
   );
-}
+});
+SettingsPage.displayName = "SettingsPage";
+
+// ── Main Dashboard ────────────────────────────────────────────
+// --- Plan & User Logic ---
+const PLANS: Record<string, User["plan_details"]> = {
+  free: {
+    name: "Free",
+    maxServices: 1,
+    pollIntervalMs: 60 * 60 * 1000,
+    historyDays: 3,
+    features: [
+      "1 service",
+      "1-hour polling",
+      "3-day history",
+      "No alerts",
+    ],
+  },
+  plus: {
+    name: "Plus",
+    maxServices: 3,
+    pollIntervalMs: 30 * 60 * 1000,
+    historyDays: 7,
+    features: [
+      "3 services",
+      "30-min polling",
+      "7-day history",
+      "Email alerts",
+    ],
+  },
+  trial: {
+    name: "Pro Trial",
+    maxServices: 15,
+    pollIntervalMs: 5 * 60 * 1000,
+    historyDays: 14,
+    features: [
+      "15 services",
+      "5-min polling",
+      "14-day trial",
+      "Slack + email + webhook alerts",
+    ],
+  },
+  pro: {
+    name: "Pro",
+    maxServices: 15,
+    pollIntervalMs: 5 * 60 * 1000,
+    historyDays: 90,
+    features: [
+      "15 services",
+      "5-min polling",
+      "90-day history",
+      "Slack + email + webhook alerts",
+      "5 team members",
+      "Compliance exports",
+    ],
+  },
+  business: {
+    name: "Business",
+    maxServices: 999,
+    pollIntervalMs: 60 * 1000,
+    historyDays: 365,
+    features: [
+      "Unlimited services",
+      "1-min polling",
+      "1-year history",
+      "All alert channels",
+      "Unlimited team members",
+      "SOC2 / HIPAA reports",
+      "Priority support",
+    ],
+  },
+};
 
 // ── Main Dashboard ────────────────────────────────────────────
 export default function Dashboard() {
-  const [page, setPage] = useState<"dashboard" | "settings">("dashboard");
-  const [sidebarOpen, setSidebarOpen] = useState(false);
   const { user: clerkUser, isLoaded } = useUser();
   const { signOut } = useClerk();
+
+  const userPlanKey = (clerkUser?.publicMetadata?.stripePlanKey as string) || "free";
+  const user: User = useMemo(() => {
+    if (!clerkUser) {
+      return {
+        email: "",
+        name: "",
+        plan: "free",
+        plan_details: PLANS.free,
+      };
+    }
+    return {
+      email: clerkUser.emailAddresses[0]?.emailAddress || "",
+      name:
+        clerkUser.firstName ||
+        clerkUser.emailAddresses[0]?.emailAddress?.split("@")[0] ||
+        "User",
+      plan: userPlanKey,
+      plan_details: PLANS[userPlanKey] || PLANS.free,
+    };
+  }, [clerkUser, userPlanKey]);
+
+  const [page, setPage] = useState<"dashboard" | "settings">("dashboard");
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [services, setServices] = useState<Service[]>([]);
   const [pollingStates, setPollingStates] = useState<
     Record<string, "idle" | "polling" | "connected">
@@ -1774,7 +1896,10 @@ export default function Dashboard() {
       .then((r) => r.json())
       .then((data) => {
         if (Array.isArray(data)) {
-          setServices(data);
+          setServices((prev) => {
+            if (JSON.stringify(prev) === JSON.stringify(data)) return prev;
+            return data;
+          });
           const states: Record<string, "idle" | "polling" | "connected"> = {};
           data.forEach((s: Service) => {
             states[s.id] = s.connected
@@ -1783,7 +1908,10 @@ export default function Dashboard() {
                 : "idle"
               : "idle";
           });
-          setPollingStates(states);
+          setPollingStates((prev) => {
+            if (JSON.stringify(prev) === JSON.stringify(states)) return prev;
+            return states;
+          });
         }
       })
       .catch(() => {});
@@ -1793,7 +1921,11 @@ export default function Dashboard() {
     fetch(`/api/changes?limit=20&t=${Date.now()}`, { cache: "no-store" })
       .then((r) => r.json())
       .then((data) => {
-        setChanges(Array.isArray(data) ? data : []);
+        const newData = Array.isArray(data) ? data : [];
+        setChanges((prev) => {
+          if (JSON.stringify(prev) === JSON.stringify(newData)) return prev;
+          return newData;
+        });
         setLoading(false);
       })
       .catch(() => setLoading(false));
@@ -1832,11 +1964,15 @@ export default function Dashboard() {
       .then((r) => r.json())
       .then((data) => {
         if (data && !data.error) {
-          setUserSettings({
+          const newSettings = {
             slack_webhook_url: data.slack_webhook_url || "",
             discord_webhook_url: data.discord_webhook_url || "",
             outbound_webhook_url: data.outbound_webhook_url || "",
             email_notifications_enabled: !!data.email_notifications_enabled,
+          };
+          setUserSettings((prev) => {
+            if (JSON.stringify(prev) === JSON.stringify(newSettings)) return prev;
+            return newSettings;
           });
         }
       })
@@ -1849,6 +1985,28 @@ export default function Dashboard() {
     fetchChanges();
     fetchUserSettings();
   }, [authChecked, fetchServices, fetchChanges, fetchUserSettings]);
+
+  // --- Auto-Polling Logic ---
+  useEffect(() => {
+    if (!authChecked || page !== "dashboard") return;
+
+    const intervalId = setInterval(() => {
+      services.forEach(service => {
+        if (!service.connected) return;
+        
+        const lastPolled = service.last_polled_at ? new Date(service.last_polled_at).getTime() : 0;
+        const now = Date.now();
+        const planInterval = user.plan_details.pollIntervalMs;
+
+        if (now - lastPolled >= planInterval) {
+          console.log(`[AUTO_POLL] Trigerring automated audit for node: ${service.name}`);
+          handlePoll(service.id);
+        }
+      });
+    }, 60000); // Check every minute
+
+    return () => clearInterval(intervalId);
+  }, [authChecked, page, services, user.plan_details.pollIntervalMs]);
 
   const handlePoll = async (serviceId: string) => {
     setPollingStates((prev) => ({ ...prev, [serviceId]: "polling" }));
@@ -1887,7 +2045,7 @@ export default function Dashboard() {
     setFilterService((prev) => (prev === serviceId ? null : serviceId));
   };
 
-  const handleLinkService = async (serviceId: string, apiKey: string) => {
+  const handleLinkService = useCallback(async (serviceId: string, apiKey: string) => {
     try {
       const res = await fetch(`/api/services`, {
         method: "POST",
@@ -1902,9 +2060,9 @@ export default function Dashboard() {
     } catch {
       return "Network error: check your connection and try again.";
     }
-  };
+  }, [fetchServices]);
 
-  const handleSaveUserSettings = async (settings: {
+  const handleSaveUserSettings = useCallback(async (settings: {
     slack_webhook_url: string;
     discord_webhook_url: string;
     outbound_webhook_url: string;
@@ -1920,7 +2078,7 @@ export default function Dashboard() {
     } catch {
       // silent fail
     }
-  };
+  }, []);
 
   const handleLogout = () => {
     signOut({ redirectUrl: "/" });
@@ -1972,15 +2130,7 @@ export default function Dashboard() {
     URL.revokeObjectURL(url);
   };
 
-  if (!authChecked || !clerkUser) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <RefreshCw className="h-6 w-6 text-muted-foreground animate-spin" />
-      </div>
-    );
-  }
-
-  const handleCheckout = async (customPriceId?: string) => {
+  const handleCheckout = useCallback(async (customPriceId?: string) => {
     try {
       setCheckoutLoading(true);
       const res = await fetch("/api/stripe/checkout", {
@@ -1994,90 +2144,21 @@ export default function Dashboard() {
       console.error(err);
       setCheckoutLoading(false);
     }
-  };
+  }, []);
 
-  // Build user profile from Clerk
-  const PLANS: Record<string, User["plan_details"]> = {
-    plus: {
-      name: "Monitra Plus",
-      maxServices: 3,
-      pollIntervalMs: 30 * 60 * 1000,
-      historyDays: 7,
-      features: [
-        "3 services",
-        "30-min polling",
-        "7-day history",
-        "Email alerts",
-      ],
-    },
-    trial: {
-      name: "Pro Trial",
-      maxServices: 15,
-      pollIntervalMs: 5 * 60 * 1000,
-      historyDays: 14,
-      features: [
-        "15 services",
-        "5-min polling",
-        "14-day trial",
-        "Slack + email + webhook alerts",
-      ],
-    },
-    pro: {
-      name: "Pro",
-      maxServices: 15,
-      pollIntervalMs: 5 * 60 * 1000,
-      historyDays: 90,
-      features: [
-        "15 services",
-        "5-min polling",
-        "90-day history",
-        "Slack + email + webhook alerts",
-        "5 team members",
-        "Compliance exports",
-      ],
-    },
-    business: {
-      name: "Business",
-      maxServices: 999,
-      pollIntervalMs: 60 * 1000,
-      historyDays: 365,
-      features: [
-        "Unlimited services",
-        "1-min polling",
-        "1-year history",
-        "All alert channels",
-        "Unlimited team members",
-        "SOC2 / HIPAA reports",
-        "Priority support",
-      ],
-    },
-  };
+  if (!authChecked || !clerkUser) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <RefreshCw className="h-6 w-6 text-muted-foreground animate-spin" />
+      </div>
+    );
+  }
 
-  const subscriptionStatus = clerkUser.publicMetadata
+  const subscriptionStatus = clerkUser?.publicMetadata
     ?.stripeSubscriptionStatus as string | undefined;
   const requiresSubscription =
     !subscriptionStatus ||
     (subscriptionStatus !== "active" && subscriptionStatus !== "trialing");
-
-  const userPlanKey = requiresSubscription
-    ? "plus"
-    : (clerkUser.publicMetadata?.stripePlanKey as string) === "free" ? "plus" : (clerkUser.publicMetadata?.stripePlanKey as string) || "trial";
-  const user: User = clerkUser
-    ? {
-        email: clerkUser.emailAddresses[0]?.emailAddress || "",
-        name:
-          clerkUser.firstName ||
-          clerkUser.emailAddresses[0]?.emailAddress?.split("@")[0] ||
-          "User",
-        plan: userPlanKey,
-        plan_details: PLANS[userPlanKey] || PLANS.plus,
-      }
-    : {
-        email: "",
-        name: "",
-        plan: "plus",
-        plan_details: PLANS.plus,
-      };
 
   const linkedServices = services.filter((s) => s.connected);
   const acknowledgedCount = changes.filter((c) => c.acknowledged).length;
@@ -2085,7 +2166,9 @@ export default function Dashboard() {
     ? changes.filter((c) => c.service_instance_id === filterService)
     : changes;
 
-  if (requiresSubscription || isVerifying) {
+  const isFreePlan = userPlanKey === "free";
+
+  if ((requiresSubscription && !isFreePlan) || isVerifying) {
     return (
       <div className="flex h-screen bg-background/50 items-center justify-center p-6">
         <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
@@ -2180,7 +2263,7 @@ export default function Dashboard() {
                 href="/"
                 className="font-normal flex space-x-2 items-center text-sm py-1 px-2 relative z-20"
               >
-                <Shield className="h-6 w-6 text-primary flex-shrink-0" />
+                <img src="/logo.png" alt="Monitra Logo" className="h-6 w-6 object-contain flex-shrink-0" />
                 <motion.span
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
@@ -2194,7 +2277,7 @@ export default function Dashboard() {
                 href="/"
                 className="font-normal flex items-center justify-center text-sm py-1 relative z-20 px-1"
               >
-                <Shield className="h-6 w-6 text-primary flex-shrink-0" />
+                <img src="/logo.png" alt="Monitra Logo" className="h-6 w-6 object-contain flex-shrink-0" />
               </a>
             )}
 

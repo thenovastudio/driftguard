@@ -68,10 +68,42 @@ async function sendWebhook(url: string, body: any) {
   }
 }
 
+import { Resend } from "resend";
+import { clerkClient } from "@clerk/nextjs/server";
+
+const resend = new Resend(process.env.RESEND_API_KEY);
+
 async function sendEmailNotification(userId: string, text: string) {
-  // In production, this would use Resend / SendGrid / NodeMailer
-  // Simulation log for the user to see it works
-  const mockId = Math.random().toString(36).substring(7).toUpperCase();
-  console.log(`[MAIL_SERVER] Dispatched Alert PID-${mockId} to internal relay for User:${userId}`);
-  console.log(`[MAIL_BODY] Subject: ALERT: Configuration Drift in Service Context\n${text}`);
+  if (!process.env.RESEND_API_KEY) {
+    console.warn("[MAIL_SERVER] Missing RESEND_API_KEY, falling back to mock");
+    return;
+  }
+
+  try {
+    const client = await clerkClient();
+    const user = await client.users.getUser(userId);
+    const email = user.emailAddresses[0]?.emailAddress;
+
+    if (!email) {
+      console.warn(`[MAIL_SERVER] No email found for user ${userId}`);
+      return;
+    }
+
+    await resend.emails.send({
+      from: 'DriftGuard Alerts <alerts@driftguard.io>',
+      to: email,
+      subject: '🚨 DRIFT_DETECTED: Configuration Change Protocol',
+      text: text,
+      html: `<div style="font-family: sans-serif; padding: 20px; border: 1px solid #eee; border-radius: 10px;">
+        <h2 style="color: #ef4444;">Drift Detected</h2>
+        <p>${text.replace(/\n/g, '<br>')}</p>
+        <hr />
+        <p style="font-size: 12px; color: #666;">This is an automated security protocol from DriftGuard.</p>
+      </div>`
+    });
+
+    console.log(`[MAIL_SERVER] Successfully dispatched Resend Alert to ${email}`);
+  } catch (err) {
+    console.error("[MAIL_SERVER] Resend dispatch failed:", err);
+  }
 }

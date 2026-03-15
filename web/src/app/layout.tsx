@@ -22,6 +22,9 @@ const jetbrainsMono = JetBrains_Mono({
 export const metadata: Metadata = {
   title: "Monitra - Real-time Configuration Intelligence",
   description: "Monitor your SaaS configuration and webhooks for unexpected drift and changes.",
+  icons: {
+    icon: "/logo.png",
+  },
 };
 
 export default function RootLayout({
