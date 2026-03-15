@@ -24,6 +24,8 @@ CREATE TABLE IF NOT EXISTS services (
   api_key TEXT DEFAULT '',
   connected BOOLEAN DEFAULT FALSE,
   enabled BOOLEAN DEFAULT TRUE,
+  owner_id TEXT DEFAULT 'System',
+  description TEXT DEFAULT 'Monitored via scan protocol V1',
   last_polled_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   PRIMARY KEY (id, user_id)
@@ -35,9 +37,20 @@ CREATE TABLE IF NOT EXISTS changes (
   service_id TEXT NOT NULL,
   diff JSONB NOT NULL,
   acknowledged BOOLEAN DEFAULT FALSE,
+  severity TEXT DEFAULT 'low',
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
 CREATE INDEX IF NOT EXISTS idx_services_user ON services(user_id);
 CREATE INDEX IF NOT EXISTS idx_changes_user ON changes(user_id, service_id, created_at DESC);
+
+CREATE TABLE IF NOT EXISTS user_settings (
+  user_id TEXT PRIMARY KEY,
+  slack_webhook_url TEXT DEFAULT '',
+  discord_webhook_url TEXT DEFAULT '',
+  outbound_webhook_url TEXT DEFAULT '',
+  email_notifications_enabled BOOLEAN DEFAULT FALSE,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
 `;

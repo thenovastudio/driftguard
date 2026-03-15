@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
-import { simulatePoll } from "@/lib/polling";
+import { performPoll } from "@/lib/polling";
 
 export async function POST(
   _req: NextRequest,
@@ -14,7 +14,7 @@ export async function POST(
   const { id } = await params;
 
   try {
-    const result = await simulatePoll(userId, id);
+    const result = await performPoll(id, userId);
     return NextResponse.json({
       message: "Poll completed",
       ...result,

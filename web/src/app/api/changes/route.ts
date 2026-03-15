@@ -13,8 +13,8 @@ export async function GET(req: NextRequest) {
 
   const { searchParams } = new URL(req.url);
   const limit = parseInt(searchParams.get("limit") || "20");
-  const serviceId = searchParams.get("service") || undefined;
+  const serviceInstanceId = searchParams.get("service") || undefined;
 
-  const changes = await getChangesForUser(userId, limit, serviceId);
+  const changes = await getChangesForUser(userId, limit, serviceInstanceId);
   return NextResponse.json(changes);
 }

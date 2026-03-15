@@ -20,8 +20,8 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "DriftGuard — SaaS Config Monitor",
-  description: "Catch SaaS config changes before they cause outages",
+  title: "Monitra - Real-time Configuration Intelligence",
+  description: "Monitor your SaaS configuration and webhooks for unexpected drift and changes.",
 };
 
 export default function RootLayout({
@@ -49,6 +49,7 @@ export default function RootLayout({
         </head>
         <body
           className={`${geistSans.variable} ${inter.variable} ${jetbrainsMono.variable} antialiased`}
+          suppressHydrationWarning
         >
           <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={false}>
             {children}

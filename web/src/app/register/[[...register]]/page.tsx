@@ -6,7 +6,7 @@ export default function RegisterPage() {
     <div className="min-h-screen bg-background flex flex-col items-center justify-center px-6">
       <a href="/" className="flex items-center gap-3 mb-8">
         <Shield className="h-8 w-8 text-primary" />
-        <span className="text-2xl font-bold">DriftGuard</span>
+        <span className="text-2xl font-bold">Monitra</span>
       </a>
       <SignUp
         appearance={{

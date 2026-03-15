@@ -107,14 +107,14 @@ const FEATURES = [
     icon: Webhook,
     title: "API & webhooks",
     description:
-      "Full REST API. Webhook notifications to your own systems. Integrate DriftGuard into your existing incident response workflow.",
+      "Full REST API. Webhook notifications to your own systems. Integrate Monitra into your existing incident response workflow.",
     highlight: false,
   },
   {
     icon: Lock,
     title: "Compliance-ready",
     description:
-      "SOC2, HIPAA, and ISO 27001 require config change tracking. DriftGuard produces the audit evidence your auditor needs. One-click export.",
+      "SOC2, HIPAA, and ISO 27001 require config change tracking. Monitra produces the audit evidence your auditor needs. One-click export.",
     highlight: true,
   },
 ];
@@ -135,13 +135,13 @@ const HOW_IT_WORKS = [
     step: "1",
     title: "Connect your SaaS",
     description:
-      "Paste an API key. DriftGuard takes a baseline snapshot of your current config. Takes 30 seconds per service.",
+      "Paste an API key. Monitra takes a baseline snapshot of your current config. Takes 30 seconds per service.",
   },
   {
     step: "2",
     title: "We monitor continuously",
     description:
-      "DriftGuard polls your services on a schedule. Every config state is compared against the last known good snapshot.",
+      "Monitra polls your services on a schedule. Every config state is compared against the last known good snapshot.",
   },
   {
     step: "3",
@@ -277,7 +277,7 @@ function PainPointsSection() {
       <div className="mx-auto max-w-7xl">
         <div className="mb-20 max-w-3xl">
           <h2 className="text-4xl md:text-5xl font-black mb-6 uppercase tracking-tighter text-foreground">
-            The vulnerabilities <br className="hidden md:block"/>nobody talks about
+            The vulnerabilities <br className="hidden md:block" />nobody talks about
           </h2>
           <p className="text-lg font-mono text-muted-foreground">
             IaC tools like Terraform map your infrastructure. But what about
