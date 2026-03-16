@@ -31,6 +31,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
+import { GlowingEffect } from "@/components/ui/glowing-effect";
 
 // ── Data ─────────────────────────────────────────────────────
 const PAIN_POINTS = [
@@ -434,113 +435,204 @@ function IntegrationsSection() {
 
 function PricingSection({ isSignedIn }: { isSignedIn: boolean }) {
   return (
-    <section id="pricing" className="py-32 px-12 bg-background border-b border-border">
-      <div className="mx-auto max-w-7xl">
-        <div className="mb-20 max-w-3xl">
-          <h2 className="text-4xl md:text-5xl font-black mb-6 uppercase tracking-tighter text-foreground">
+    <section id="pricing" className="py-32 px-12 bg-background border-b border-border relative overflow-hidden">
+      <div className="absolute inset-0 bg-gradient-to-b from-transparent via-primary/5 to-transparent pointer-events-none" />
+      
+      <div className="mx-auto max-w-7xl relative">
+        <div className="mb-20 text-center mx-auto max-w-xl">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 border border-primary/20 text-primary text-[10px] font-black uppercase tracking-[0.2em] mb-6">
+            Access Control
+          </div>
+          <h2 className="text-4xl md:text-6xl font-black mb-6 uppercase tracking-tighter text-foreground">
             Clearance Levels
           </h2>
-          <p className="text-lg font-mono text-muted-foreground">
-            Select your operational capacity.
+          <p className="text-lg font-mono text-muted-foreground opacity-60">
+            Select your operational capacity. Scale as your infrastructure expands.
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-0 border-t border-l border-border bg-card">
-          {/* Plus */}
-          <div className="border-r border-b border-border p-12 hover:bg-muted transition-colors">
-            <h3 className="text-xl font-bold tracking-widest uppercase mb-2">Level 1: Plus</h3>
-            <p className="text-xs font-mono text-muted-foreground mb-8 uppercase tracking-widest">
-              Standard Access
-            </p>
-            <div className="mb-10 font-mono">
-              <span className="text-6xl font-black text-foreground">$4.99</span>
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          {/* Level 1: Free */}
+          <div className="group relative flex flex-col rounded-[2rem] border border-white/5 bg-black/40 p-8 hover:border-white/10 transition-all">
+            <div className="mb-8">
+              <h3 className="text-lg font-black tracking-widest uppercase mb-1">Free</h3>
+              <p className="text-[10px] font-mono text-muted-foreground uppercase tracking-[0.2em] opacity-60">
+                Personal Visibility
+              </p>
             </div>
-            <ul className="space-y-4 mb-12">
+            
+            <div className="mb-8">
+              <div className="flex items-baseline gap-1">
+                <span className="text-5xl font-black text-foreground">$0</span>
+                <span className="text-sm font-mono text-muted-foreground uppercase opacity-40">/mo</span>
+              </div>
+              <p className="text-[10px] font-mono text-primary mt-2 uppercase tracking-widest font-bold">Standard Clearance</p>
+            </div>
+
+            <ul className="space-y-3 mb-10 flex-1">
+              {[
+                "1 Node max",
+                "1-hour scan polling",
+                "3-day retention log",
+                "No alerts",
+              ].map((f, i) => (
+                <li key={i} className="flex items-center gap-3 text-xs font-mono text-muted-foreground">
+                  <CheckCircle2 className="h-3 w-3 text-emerald-500/30" />
+                  {f}
+                </li>
+              ))}
+            </ul>
+
+            <a
+              href={isSignedIn ? "/dashboard" : "/register"}
+              className="block text-center rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-[10px] font-black tracking-[0.2em] uppercase hover:bg-white/10 transition-all font-mono"
+            >
+              ACQUIRE CLEARANCE
+            </a>
+          </div>
+
+          {/* Level 2: Plus */}
+          <div className="group relative flex flex-col rounded-[2rem] border border-white/10 bg-black/40 p-8 hover:border-primary/30 transition-all shadow-xl">
+            <div className="mb-8">
+              <h3 className="text-lg font-black tracking-widest uppercase mb-1">Plus</h3>
+              <p className="text-[10px] font-mono text-muted-foreground uppercase tracking-[0.2em] opacity-60">
+                Entry Clearance
+              </p>
+            </div>
+            
+            <div className="mb-8">
+              <div className="flex items-baseline gap-1">
+                <span className="text-5xl font-black text-foreground">$4.99</span>
+                <span className="text-sm font-mono text-muted-foreground uppercase opacity-40">/mo</span>
+              </div>
+              <p className="text-[10px] font-mono text-primary mt-2 uppercase tracking-widest font-bold">Value Tier</p>
+            </div>
+
+            <ul className="space-y-3 mb-10 flex-1">
               {[
                 "3 Nodes max",
                 "30-min scan polling",
                 "7-day retention log",
                 "Email dispatches",
+                "Visual diff engine",
               ].map((f, i) => (
-                <li key={i} className="flex items-center gap-3 text-sm font-mono">
-                  <span className="w-1.5 h-1.5 bg-primary rounded-none shrink-0" />
+                <li key={i} className="flex items-center gap-3 text-xs font-mono group-hover:text-foreground transition-colors text-muted-foreground">
+                  <CheckCircle2 className="h-3 w-3 text-emerald-500/50 group-hover:text-emerald-500 transition-colors" />
                   {f}
                 </li>
               ))}
             </ul>
+
             <a
               href={isSignedIn ? "/dashboard" : "/register"}
-              className="block text-center border border-border px-6 py-4 text-xs font-mono font-bold tracking-widest uppercase hover:bg-foreground hover:text-background transition-colors"
+              className="block text-center rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-[10px] font-black tracking-[0.2em] uppercase hover:bg-white/10 hover:border-white/20 transition-all font-mono"
             >
-              {isSignedIn ? "ACCESS TERMINAL" : "ACQUIRE KEY"}
+              UPGRADE TO PLUS
             </a>
           </div>
 
-          {/* Pro */}
-          <div className="border-r border-b border-primary bg-secondary p-12 relative overflow-hidden">
-            <div className="absolute top-0 right-0 bg-primary text-primary-foreground text-[10px] font-mono font-bold tracking-widest uppercase px-3 py-1">
-              Recommended
+          {/* Level 3: Pro (Recommended) */}
+          <div className="group relative flex flex-col rounded-[2rem] border border-primary/40 bg-primary/[0.03] p-8 shadow-[0_0_50px_-12px_rgba(var(--primary-rgb),0.3)] z-10 overflow-hidden">
+            <GlowingEffect
+              spread={40}
+              glow
+              disabled={false}
+              proximity={64}
+              inactiveZone={0.01}
+              borderWidth={2}
+            />
+            
+            <div className="absolute top-0 right-0 p-4">
+              <div className="bg-primary text-primary-foreground text-[8px] font-black tracking-widest uppercase px-2 py-0.5 rounded-full shadow-lg">
+                Recommended
+              </div>
             </div>
-            <h3 className="text-xl font-bold tracking-widest uppercase mb-2 text-primary">Level 2: Pro</h3>
-            <p className="text-xs font-mono text-muted-foreground mb-8 uppercase tracking-widest">
-              Advanced Operations
-            </p>
-            <div className="mb-10 font-mono">
-              <span className="text-6xl font-black text-primary">$29</span>
+
+            <div className="mb-8 text-primary">
+              <h3 className="text-lg font-black tracking-widest uppercase mb-1">Pro</h3>
+              <p className="text-[10px] font-mono uppercase tracking-[0.2em] opacity-60">
+                Advanced Operations
+              </p>
             </div>
-            <ul className="space-y-4 mb-12">
+            
+            <div className="mb-8">
+              <div className="flex items-baseline gap-1">
+                <span className="text-5xl font-black text-primary">$29</span>
+                <span className="text-sm font-mono text-primary/40 uppercase">/mo</span>
+              </div>
+              <p className="text-[10px] font-mono text-amber-500 mt-2 uppercase tracking-widest font-bold flex items-center gap-2">
+                <Zap className="h-3 w-3 fill-amber-500" />
+                14-Day Free Trial
+              </p>
+            </div>
+
+            <ul className="space-y-3 mb-10 flex-1">
               {[
                 "15 Nodes max",
                 "5-min scan polling",
                 "90-day retention log",
                 "Multi-channel dispatches",
                 "5 Agents allowed",
-                "Compliance export protocol",
+                "Compliance exports",
+                "Priority audit queue",
               ].map((f, i) => (
-                <li key={i} className="flex items-center gap-3 text-sm font-mono">
-                  <span className="w-1.5 h-1.5 bg-primary rounded-none shrink-0" />
+                <li key={i} className="flex items-center gap-3 text-xs font-mono text-foreground font-medium">
+                  <CheckCircle2 className="h-3 w-3 text-primary" />
                   {f}
                 </li>
               ))}
             </ul>
+
             <a
               href={isSignedIn ? "/dashboard" : "/register"}
-              className="block text-center bg-primary text-primary-foreground px-6 py-4 text-xs font-mono font-bold tracking-widest uppercase hover:bg-primary/90 transition-colors"
+              className="block text-center rounded-xl bg-primary px-4 py-3 text-[10px] font-black tracking-[0.2em] uppercase text-primary-foreground hover:bg-primary/90 hover:shadow-[0_0_20px_rgba(var(--primary-rgb),0.5)] transition-all font-mono"
             >
-              {isSignedIn ? "ACCESS TERMINAL" : "ACQUIRE KEY"}
+              START 14 DAY TRIAL
             </a>
           </div>
 
-          {/* Business */}
-          <div className="border-r border-b border-border p-12 hover:bg-muted transition-colors">
-            <h3 className="text-xl font-bold tracking-widest uppercase mb-2">Level 3: Business</h3>
-            <p className="text-xs font-mono text-muted-foreground mb-8 uppercase tracking-widest">
-              Absolute Authority
-            </p>
-            <div className="mb-10 font-mono">
-              <span className="text-6xl font-black text-foreground">$79</span>
+          {/* Level 4: Business */}
+          <div className="group relative flex flex-col rounded-[2rem] border border-white/5 bg-black/40 p-8 hover:border-white/10 transition-all">
+            <div className="mb-8">
+              <h3 className="text-lg font-black tracking-widest uppercase mb-1">Business</h3>
+              <p className="text-[10px] font-mono text-muted-foreground uppercase tracking-[0.2em] opacity-60">
+                Absolute Authority
+              </p>
             </div>
-            <ul className="space-y-4 mb-12">
+            
+            <div className="mb-8">
+              <div className="flex items-baseline gap-1">
+                <span className="text-5xl font-black text-foreground">$79</span>
+                <span className="text-sm font-mono text-muted-foreground uppercase opacity-40">/mo</span>
+              </div>
+              <p className="text-[10px] font-mono text-amber-500 mt-2 uppercase tracking-widest font-bold flex items-center gap-2">
+                <Zap className="h-3 w-3 fill-amber-500" />
+                14-Day Free Trial
+              </p>
+            </div>
+
+            <ul className="space-y-3 mb-10 flex-1">
               {[
                 "Infinite Nodes",
                 "1-min scan polling",
-                "1-year retention log",
+                "1-year history",
                 "Total dispatch authority",
                 "Infinite Agents",
-                "SOC2 / HIPAA compliance",
-                "Priority comms channel",
+                "SOC2 / HIPAA",
+                "Dedicated Engineer",
               ].map((f, i) => (
-                <li key={i} className="flex items-center gap-3 text-sm font-mono">
-                  <span className="w-1.5 h-1.5 bg-primary rounded-none shrink-0" />
+                <li key={i} className="flex items-center gap-3 text-xs font-mono text-muted-foreground group-hover:text-foreground transition-colors">
+                  <CheckCircle2 className="h-3 w-3 text-emerald-500/30 group-hover:text-emerald-500 transition-colors" />
                   {f}
                 </li>
               ))}
             </ul>
+
             <a
               href={isSignedIn ? "/dashboard" : "/register"}
-              className="block text-center border border-border px-6 py-4 text-xs font-mono font-bold tracking-widest uppercase hover:bg-foreground hover:text-background transition-colors"
+              className="block text-center rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-[10px] font-black tracking-[0.2em] uppercase hover:bg-white/10 transition-all font-mono"
             >
-              {isSignedIn ? "ACCESS TERMINAL" : "CONTACT COMMAND"}
+              START 14 DAY TRIAL
             </a>
           </div>
         </div>
@@ -548,6 +640,7 @@ function PricingSection({ isSignedIn }: { isSignedIn: boolean }) {
     </section>
   );
 }
+
 
 function FinalCTASection({ isSignedIn }: { isSignedIn: boolean }) {
   return (

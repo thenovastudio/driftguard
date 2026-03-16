@@ -40,3 +40,33 @@ CREATE POLICY "Allow all operations for services" ON public.services
 
 CREATE POLICY "Allow all operations for changes" ON public.changes
   FOR ALL USING (true) WITH CHECK (true);
+
+-- 4. Create the 'team_members' table
+CREATE TABLE IF NOT EXISTS public.team_members (
+  id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+  owner_id text NOT NULL, -- The user who owns the account
+  user_email text NOT NULL, -- Invited user email
+  role text DEFAULT 'member' NOT NULL,
+  created_at timestamp with time zone DEFAULT now() NOT NULL,
+  
+  -- Prevent duplicate invites
+  UNIQUE (owner_id, user_email)
+);
+
+ALTER TABLE public.team_members ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Allow all operations for team_members" ON public.team_members
+  FOR ALL USING (true) WITH CHECK (true);
+-- 5. Create the 'projects' table
+CREATE TABLE IF NOT EXISTS public.projects (
+  id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id text NOT NULL,
+  name text NOT NULL,
+  created_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+ALTER TABLE public.projects ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Allow all operations for projects" ON public.projects
+  FOR ALL USING (true) WITH CHECK (true);
+
+-- 6. Add project_id to services
+ALTER TABLE public.services ADD COLUMN IF NOT EXISTS project_id uuid REFERENCES public.projects(id) ON DELETE SET NULL;

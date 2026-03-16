@@ -62,6 +62,9 @@ import {
   MessageCircle,
   Webhook,
   ArrowLeft,
+  FolderKanban,
+  PanelLeftClose,
+  PanelLeft,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -86,6 +89,14 @@ interface Service {
   last_polled_at: string | null;
   api_key?: string;
   connected: boolean;
+  project_id?: string;
+}
+
+interface Project {
+  id: string;
+  user_id: string;
+  name: string;
+  created_at: string;
 }
 
 interface Change {
@@ -109,6 +120,7 @@ interface User {
     maxServices: number;
     pollIntervalMs: number;
     historyDays: number;
+    maxTeamMembers: number;
     features: string[];
   };
 }
@@ -400,6 +412,8 @@ function ServiceCard({
   onViewChanges,
   onUnlink,
   isFiltered,
+  onClick,
+  projects = [],
 }: {
   service: Service;
   status: "idle" | "polling" | "connected";
@@ -408,25 +422,29 @@ function ServiceCard({
   onViewChanges: (id: string) => void;
   onUnlink: (id: string) => void;
   isFiltered: boolean;
+  onClick?: () => void;
+  projects?: Project[];
 }) {
   const owner = service.owner_id || "System_Node";
+  const project = projects.find((p) => p.id === service.project_id);
 
   return (
     <li className="min-h-[14rem] list-none relative">
-      <GlowingEffect
-        spread={40}
-        glow
-        disabled={false}
-        proximity={64}
-        inactiveZone={0.01}
-        borderWidth={1.5}
-      />
       <div
+        onClick={onClick}
         className={cn(
-          "group relative h-full rounded-2xl border border-white/5 bg-black/40 p-6 transition-all hover:border-primary/40 shadow-xl overflow-hidden",
+          "group relative h-full rounded-2xl border border-white/5 bg-black/40 p-6 transition-all hover:border-primary/40 shadow-xl overflow-hidden cursor-pointer",
           isFiltered && "ring-1 ring-primary",
         )}
       >
+        <GlowingEffect
+          spread={40}
+          glow
+          disabled={false}
+          proximity={64}
+          inactiveZone={0.01}
+          borderWidth={1.5}
+        />
         <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
           <Shield className="h-24 w-24 -mr-10 -mt-10" />
         </div>
@@ -448,6 +466,11 @@ function ServiceCard({
             >
               {status === "polling" ? "Scanning_Active" : "Sync_Verified"}
             </div>
+            {project && (
+                <div className="mt-1 px-1.5 py-0.5 rounded bg-primary/10 border border-primary/20 text-[7px] font-bold text-primary uppercase tracking-tighter">
+                    {project.name}
+                </div>
+            )}
             {service.last_polled_at && (
               <span className="text-[9px] text-muted-foreground mt-1 font-mono opacity-50">
                 T+{" "}
@@ -1152,13 +1175,14 @@ const PLANS_LIST = [
     name: "Free",
     price: "$0",
     period: "/mo",
-    desc: "Basic visibility for personal projects",
+    desc: "Personal visibility and monitoring",
     priceId: undefined,
     features: [
       "1 service",
       "1-hour polling",
       "3-day history",
       "No alerts",
+      "1 team member (owner)",
     ],
   },
   {
@@ -1166,13 +1190,15 @@ const PLANS_LIST = [
     name: "Plus",
     price: "$4.99",
     period: "/mo",
-    desc: "For essential monitoring",
+    desc: "Standard visibility for growing projects",
     priceId: process.env.NEXT_PUBLIC_STRIPE_PLUS_PRICE_ID,
     features: [
       "3 services",
       "30-min polling",
       "7-day history",
       "Email alerts",
+      "Visual diff engine",
+      "1 team member (owner)",
     ],
   },
   {
@@ -1180,16 +1206,17 @@ const PLANS_LIST = [
     name: "Pro",
     price: "$29",
     period: "/mo",
-    desc: "For growing teams",
+    desc: "Advanced operations for scaling teams",
     popular: true,
     priceId: process.env.NEXT_PUBLIC_STRIPE_PRO_PRICE_ID,
     features: [
       "15 services",
       "5-min polling",
       "90-day history",
-      "Slack + email + webhook alerts",
+      "Slack + email + Discord alerts",
       "5 team members",
       "Compliance exports",
+      "Priority audit queue",
     ],
   },
   {
@@ -1197,35 +1224,134 @@ const PLANS_LIST = [
     name: "Business",
     price: "$79",
     period: "/mo",
-    desc: "For compliance-heavy orgs",
+    desc: "Absolute authority for compliance-heavy orgs",
     priceId: process.env.NEXT_PUBLIC_STRIPE_BUSINESS_PRICE_ID,
     features: [
       "Unlimited services",
       "1-min polling",
       "1-year history",
-      "All alert channels",
+      "Total dispatch authority",
       "Unlimited team members",
       "SOC2 / HIPAA reports",
       "Priority support",
+      "Dedicated engineer",
     ],
   },
 ];
 
-const TABS: TabItem[] = [
-  { title: "Billing & Plan", icon: CreditCard },
-  { type: "separator" },
-  { title: "Linked Services", icon: Shield },
-  { type: "separator" },
-  { title: "Notifications", icon: Bell },
-];
+
+const ProjectsPage = memo(({
+    services,
+    projects,
+    onAddProject,
+    onDeleteProject,
+    onAssignProject,
+  }: {
+    services: Service[];
+    projects: Project[];
+    onAddProject: (name: string) => void;
+    onDeleteProject: (id: string) => void;
+    onAssignProject: (serviceId: string, projectId: string | null) => void;
+  }) => {
+    const [newProjectName, setNewProjectName] = useState("");
+  
+    return (
+      <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+        <div>
+          <h1 className="text-2xl font-bold mb-2 text-primary uppercase tracking-tighter">Project Clusters</h1>
+          <p className="text-muted-foreground">
+            Group your monitors into logical clusters for better command and control
+          </p>
+        </div>
+  
+        <div className="flex items-center gap-4 bg-muted/30 p-4 rounded-xl border border-border">
+          <div className="relative flex-1">
+            <FolderKanban className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <input
+              type="text"
+              placeholder="Enter cluster name... (e.g. Production Mesh)"
+              className="w-full bg-background border border-border rounded-lg pl-10 pr-4 h-11 text-sm focus:outline-none focus:ring-1 focus:ring-primary/50 transition-all font-mono"
+              value={newProjectName}
+              onChange={(e) => setNewProjectName(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && onAddProject(newProjectName)}
+            />
+          </div>
+          <InteractiveHoverButton
+            text="Launch Cluster"
+            onClick={() => {
+              onAddProject(newProjectName);
+              setNewProjectName("");
+            }}
+            className="h-11"
+          />
+        </div>
+  
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {projects.map((project) => (
+            <div key={project.id} className="group relative rounded-2xl border border-white/5 bg-black/40 p-6 hover:border-primary/30 transition-all shadow-xl">
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary group-hover:scale-110 transition-transform">
+                    <Boxes className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-black uppercase tracking-tight">{project.name}</h3>
+                    <p className="text-[10px] text-muted-foreground uppercase font-mono tracking-widest">
+                       {services.filter(s => s.project_id === project.id).length} Monitors Assigned
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => onDeleteProject(project.id)}
+                  className="p-2 rounded-lg hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              </div>
+  
+              <div className="space-y-3">
+                <p className="text-[9px] uppercase tracking-widest text-muted-foreground font-black opacity-40">Assign Resource</p>
+                <div className="flex flex-wrap gap-2">
+                  {services.map((service) => {
+                    const isAssigned = service.project_id === project.id;
+                    const isElsewhere = service.project_id && service.project_id !== project.id;
+                    
+                    if (isElsewhere) return null;
+  
+                    return (
+                      <button
+                        key={service.id}
+                        onClick={() => onAssignProject(service.id, isAssigned ? null : project.id)}
+                        className={cn(
+                          "px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest border transition-all",
+                          isAssigned 
+                            ? "bg-primary text-primary-foreground border-primary shadow-[0_0_10px_rgba(var(--primary-rgb),0.3)]" 
+                            : "bg-white/5 border-white/10 text-muted-foreground hover:border-white/20"
+                        )}
+                      >
+                        {service.name}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  });
 
 const SettingsPage = memo(({
   services,
   user,
   userSettings,
+  hasUsedTrial,
   onSave,
   onSaveSettings,
   onCheckout,
+  onCancelSubscription,
+  defaultTab = "Billing & Plan",
 }: {
   services: Service[];
   user: User;
@@ -1234,43 +1360,92 @@ const SettingsPage = memo(({
     discord_webhook_url: string;
     outbound_webhook_url: string;
     email_notifications_enabled: boolean;
+    appearance: "default" | "modern";
   };
+  hasUsedTrial: boolean;
   onSave: (serviceId: string, apiKey: string) => Promise<string | null>;
   onSaveSettings: (settings: {
     slack_webhook_url: string;
     discord_webhook_url: string;
     outbound_webhook_url: string;
     email_notifications_enabled: boolean;
+    appearance: "default" | "modern";
   }) => void;
   onCheckout: (priceId?: string) => void;
+  onCancelSubscription: () => void;
+  defaultTab?: string;
 }) => {
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
-  const [activeTab, setActiveTab] = useState("Billing & Plan");
+  const [activeTab, setActiveTab] = useState(defaultTab);
   const [localSettings, setLocalSettings] = useState(userSettings);
   const [settingsSaved, setSettingsSaved] = useState(false);
+
+  useEffect(() => {
+    setActiveTab(defaultTab);
+  }, [defaultTab]);
 
   useEffect(() => {
     setLocalSettings(userSettings);
   }, [userSettings]);
 
-  const handleTabChange = useCallback((index: number | null) => {
-    if (index === 0) setActiveTab("Billing & Plan");
-    if (index === 2) setActiveTab("Linked Services");
-    if (index === 4) setActiveTab("Notifications");
+  const [teamMembers, setTeamMembers] = useState<any[]>([]);
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [inviteLoading, setInviteLoading] = useState(false);
+
+  useEffect(() => {
+    fetchTeamMembers();
   }, []);
 
-  const handleCancelSubscription = async () => {
+  const fetchTeamMembers = async () => {
     try {
-      const res = await fetch("/api/stripe/cancel", { method: "POST" });
-      const data = await res.json();
-      if (data.success) {
-        window.location.reload();
-      } else {
-        alert(data.error || "Failed to cancel subscription");
+      const res = await fetch("/api/teams");
+      if (res.ok) {
+        const data = await res.json();
+        setTeamMembers(data);
       }
     } catch (e) {
-      alert("Failed to cancel subscription.");
+      console.error("Failed to fetch team members");
     }
+  };
+
+  const handleInvite = async () => {
+    if (!inviteEmail) return;
+    setInviteLoading(true);
+    try {
+      const res = await fetch("/api/teams", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: inviteEmail }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setInviteEmail("");
+        fetchTeamMembers();
+      } else {
+        alert(data.error || "Failed to invite member");
+      }
+    } catch (e) {
+      alert("Failed to invite member");
+    } finally {
+      setInviteLoading(false);
+    }
+  };
+
+  const handleRemoveMember = async (id: string) => {
+    if (!confirm("Are you sure you want to remove this team member?")) return;
+    try {
+      const res = await fetch(`/api/teams?id=${id}`, { method: "DELETE" });
+      if (res.ok) {
+        fetchTeamMembers();
+      }
+    } catch (e) {
+      alert("Failed to remove member");
+    }
+  };
+
+
+  const handleCancelSubscription = async () => {
+    await onCancelSubscription();
     setShowCancelConfirm(false);
   };
 
@@ -1278,18 +1453,16 @@ const SettingsPage = memo(({
     <div>
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="text-2xl font-bold mb-2 text-primary uppercase tracking-tighter">Integration Hub</h1>
+          <h1 className="text-2xl font-bold mb-2 text-primary uppercase tracking-tighter">
+            {activeTab === "Billing & Plan" ? "Subscription Command" : 
+             activeTab === "Linked Services" ? "Integration Hub" :
+             activeTab === "Teams" ? "Personnel Mesh" : "Telemetry Alerts"}
+          </h1>
           <p className="text-muted-foreground">
-            Manage your plan, billing, and service connections
+            {activeTab === "Billing & Plan" ? "Manage your operational tier and billing authority" : 
+             activeTab === "Linked Services" ? "Authorize and sync your SaaS configuration nodes" :
+             activeTab === "Teams" ? "Calibrate access for your technical staff" : "Configure drift response and notification signals"}
           </p>
-        </div>
-        <div className="flex items-center gap-4">
-          <ExpandableTabs
-            tabs={TABS}
-            activeColor="text-primary"
-            defaultSelected={activeTab === "Billing & Plan" ? 0 : activeTab === "Linked Services" ? 2 : 4}
-            onChange={handleTabChange}
-          />
         </div>
       </div>
 
@@ -1336,94 +1509,126 @@ const SettingsPage = memo(({
           </div>
 
           {/* Plan comparison grid */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
             {PLANS_LIST.map((plan) => {
-              const isCurrent =
-                user.plan === plan.key ||
-                (user.plan === "trial" && plan.key === "pro");
+              const isCurrent = user.plan === plan.key || (user.plan === "trial" && plan.key === "pro");
+              const isFree = plan.key === "free";
+              const isPlus = plan.key === "plus";
+
+              const currentIndex = PLANS_LIST.findIndex(p => p.key === user.plan || (user.plan === "trial" && p.key === "pro"));
+              const planIndex = PLANS_LIST.findIndex(p => p.key === plan.key);
+              const isUpgrade = planIndex > currentIndex;
+              
               return (
                 <div
                   key={plan.key}
                   className={cn(
-                    "rounded-xl border p-5 transition-colors relative flex flex-col",
+                    "group relative flex flex-col rounded-[2.5rem] border p-8 transition-all overflow-hidden",
                     isCurrent
-                      ? "border-primary bg-primary/5"
-                      : "border-border bg-card hover:border-border/80",
+                      ? "border-primary/50 bg-primary/[0.03] shadow-[0_0_40px_-15px_rgba(var(--primary-rgb),0.3)]"
+                      : "border-white/5 bg-black/20 hover:border-white/20",
                     plan.popular && !isCurrent && "border-primary/30",
                   )}
                 >
                   {plan.popular && (
-                    <div className="absolute -top-2.5 left-1/2 -translate-x-1/2 rounded-full bg-primary px-2.5 py-0.5 text-[10px] font-medium text-primary-foreground">
-                      Most popular
+                    <div className="absolute top-0 right-0 p-5">
+                      <div className="bg-primary text-primary-foreground text-[10px] font-black tracking-widest uppercase px-3 py-1 rounded-full">
+                        Recommended
+                      </div>
                     </div>
                   )}
-                  <h3 className="font-semibold mb-0.5">{plan.name}</h3>
-                  <p className="text-xs text-muted-foreground mb-3">
-                    {plan.desc}
-                  </p>
-                  <div className="mb-4">
-                    <span className="text-2xl font-bold">{plan.price}</span>
-                    <span className="text-sm text-muted-foreground">
-                      {plan.period}
-                    </span>
+
+                  <div className="mb-8">
+                    <h3 className={cn(
+                      "text-lg font-black uppercase tracking-widest mb-1",
+                      isCurrent ? "text-primary" : "text-foreground"
+                    )}>
+                      {plan.name}
+                    </h3>
+                    <p className="text-[10px] uppercase font-mono text-muted-foreground tracking-widest opacity-60">
+                      {plan.desc}
+                    </p>
                   </div>
-                  <ul className="space-y-1.5 mb-4 flex-1">
+
+                  <div className="mb-10">
+                    <div className="flex items-baseline gap-1">
+                      <span className={cn(
+                        "text-4xl font-black",
+                        isCurrent ? "text-primary" : "text-foreground"
+                      )}>
+                        {plan.price}
+                      </span>
+                      <span className="text-sm font-mono text-muted-foreground uppercase opacity-40">
+                        {plan.period}
+                      </span>
+                    </div>
+                    {!isFree && !isPlus && !isCurrent && (
+                      <p className="text-[10px] font-mono text-amber-500 mt-2 uppercase tracking-widest font-bold flex items-center gap-2">
+                        <Zap className="h-3 w-3 fill-amber-500" />
+                        14-Day Trial Available
+                      </p>
+                    )}
+                    {isFree && (
+                      <p className="text-[10px] font-mono text-primary mt-2 uppercase tracking-widest font-bold">Standard Clearance</p>
+                    )}
+                    {isPlus && (
+                      <p className="text-[10px] font-mono text-primary mt-2 uppercase tracking-widest font-bold">Value Tier</p>
+                    )}
+                  </div>
+
+                  <ul className="space-y-4 mb-10 flex-1">
                     {plan.features.map((f, i) => (
-                      <li key={i} className="flex items-center gap-1.5 text-xs">
-                        <CheckCircle2 className="h-3 w-3 text-emerald-400 shrink-0" />{" "}
-                        {f}
+                      <li key={i} className="flex items-center gap-3 text-xs font-mono">
+                        <CheckCircle2 className={cn(
+                          "h-4 w-4 shrink-0",
+                          isCurrent ? "text-primary" : "text-emerald-500/50"
+                        )} />
+                        <span className={isCurrent ? "text-foreground font-medium" : "text-muted-foreground"}>
+                          {f}
+                        </span>
                       </li>
                     ))}
                   </ul>
+
                   {isCurrent ? (
-                    <div className="flex flex-col gap-2 mt-auto pt-4">
-                      <div className="text-center rounded-lg border border-primary/30 bg-primary/10 px-3 py-2 text-xs font-medium text-primary">
-                        Current plan
+                    <div className="flex flex-col gap-3 mt-auto pt-6 border-t border-white/5">
+                      <div className="text-center rounded-2xl border border-primary/30 bg-primary/10 px-4 py-3 text-xs font-black uppercase tracking-widest text-primary">
+                        Active Subscription
                       </div>
-                      {plan.key !== "free" && (
+                      {!isFree && (
                         <button
                           onClick={() => setShowCancelConfirm(true)}
-                          className="w-full rounded-lg border border-destructive/30 px-3 py-2 text-xs font-medium text-destructive hover:bg-destructive/10 transition-colors"
+                          className="w-full rounded-2xl border border-destructive/20 px-4 py-3 text-[10px] font-black uppercase tracking-widest text-destructive hover:bg-destructive/10 transition-all opacity-60 hover:opacity-100"
                         >
-                          Cancel Subscription
+                          Terminate Subscription
                         </button>
                       )}
                     </div>
                   ) : (
-                    <div className="mt-auto pt-4 flex flex-col gap-2">
+                    <div className="mt-auto pt-6 border-t border-white/5">
                       <button
-                        className="w-full rounded-lg bg-primary px-3 py-2 text-xs font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
+                        className={cn(
+                          "w-full rounded-2xl px-4 py-4 text-xs font-black uppercase tracking-widest transition-all font-mono",
+                          plan.popular 
+                            ? "bg-primary text-primary-foreground hover:bg-primary/90 shadow-lg shadow-primary/20" 
+                            : "bg-white/5 text-foreground hover:bg-white/10 border border-white/10"
+                        )}
                         onClick={() => {
-                          if (plan.key === "free") {
-                            // Already on free, but just in case, this button shouldn't show if isCurrent
-                            alert("You are already on the Free plan.");
+                          if (isCurrent) {
+                            alert(`You are already on the ${plan.name} plan.`);
+                          } else if (isFree) {
+                            setShowCancelConfirm(true);
                           } else {
                             onCheckout(plan.priceId);
                           }
                         }}
                       >
-                        {plan.key === "free" ? "Downgrade to Free" : 
-                         user.plan === "free" && plan.key === "plus"
-                          ? `Start ${plan.name}` :
-                         (user.plan === "free" || user.plan === "plus") && plan.key !== "free" && plan.key !== "plus"
-                          ? `Start 14-day free trial`
-                          : PLANS_LIST.findIndex(
-                                 (p) =>
-                                   p.key === user.plan ||
-                                   (user.plan === "trial" && p.key === "pro") ||
-                                   (user.plan === "free" && p.key === "plus"),
-                               ) >
-                               PLANS_LIST.findIndex((p) => p.key === plan.key)
-                             ? `Downgrade to ${plan.name}`
-                             : `Upgrade to ${plan.name}`}
+                        {isCurrent ? "Active Subscription" :
+                         isFree ? "Return to Free" : 
+                         (plan.key === "pro" || plan.key === "business") && user.plan === "free" && !hasUsedTrial
+                          ? "Start 14 day trial"
+                          : isUpgrade ? `Upgrade to ${plan.name}` : `Downgrade to ${plan.name}`}
                       </button>
-                      {plan.key !== "free" && (user.plan === "free" || user.plan === "plus") && plan.key !== "plus" && (
-                        <p className="text-[10px] text-center text-muted-foreground leading-tight">
-                          Requires credit card via Stripe.
-                          <br />
-                          Automatically billed when trial ends.
-                        </p>
-                      )}
                     </div>
                   )}
                 </div>
@@ -1503,7 +1708,7 @@ const SettingsPage = memo(({
               <div className="w-16 h-16 rounded-full bg-destructive/10 flex items-center justify-center text-destructive mx-auto mb-6">
                 <Trash2 className="h-8 w-8" />
               </div>
-              <h3 className="text-xl font-bold mb-2">Cancel {user.plan_details.name}?</h3>
+              <h3 className="text-xl font-bold mb-2">Downgrade to Free?</h3>
               <p className="text-muted-foreground text-sm mb-8 leading-relaxed">
                 You will be immediately downgraded to the **Free plan**. This will limit your monitoring capacity to 1 service and disable advanced alerts.
               </p>
@@ -1518,13 +1723,151 @@ const SettingsPage = memo(({
                   onClick={handleCancelSubscription}
                   className="px-4 py-3 rounded-xl bg-destructive text-destructive-foreground font-bold text-sm hover:bg-destructive/90 transition-colors"
                 >
-                  YES, CANCEL
+                  YES, TERMINATE
                 </button>
               </div>
             </motion.div>
           </motion.div>
         )}
       </AnimatePresence>
+
+      {activeTab === "Teams" && user && (
+        <div className="mb-10 fade-in-0 animate-in slide-in-from-bottom-4 duration-300">
+          <h2 className="text-lg font-semibold mb-4 flex items-center gap-2 uppercase tracking-tight">
+            <Users className="h-5 w-5 text-primary" /> Team Management
+          </h2>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="md:col-span-1 space-y-6">
+              <div className="rounded-xl border border-border bg-card p-6">
+                <h3 className="font-black text-[10px] uppercase tracking-widest text-primary mb-4">
+                  INVITE_COLLEAGUE
+                </h3>
+                <p className="text-xs text-muted-foreground mb-6">
+                  Add satellites to your command center. They will receive an automated dispatch to join this operation.
+                </p>
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-mono text-muted-foreground uppercase">Email Address</label>
+                    <input
+                      type="email"
+                      value={inviteEmail}
+                      disabled={user.plan_details.maxTeamMembers <= 1}
+                      onChange={(e) => setInviteEmail(e.target.value)}
+                      placeholder="engineer@company.com"
+                      className="w-full rounded-lg border border-border bg-background px-4 py-3 text-sm font-mono focus:outline-none focus:ring-1 focus:ring-primary/50 transition-all disabled:opacity-50"
+                    />
+                  </div>
+                  <button
+                    onClick={handleInvite}
+                    disabled={inviteLoading || !inviteEmail || user.plan_details.maxTeamMembers <= 1}
+                    className="w-full rounded-xl bg-primary px-4 py-3 text-xs font-black uppercase tracking-widest text-primary-foreground hover:bg-primary/90 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+                  >
+                    {inviteLoading ? <RefreshCw className="h-3 w-3 animate-spin" /> : <Plus className="h-3 w-3" />}
+                    SEND_INVITE
+                  </button>
+                  {user.plan_details.maxTeamMembers <= 1 && (
+                    <div className="rounded-lg border border-amber-500/20 bg-amber-500/5 p-3 text-[10px] font-mono text-amber-500/80">
+                      PRO_REQUIRED: Single-user clearance detected. Upgrade to scale your team.
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="rounded-xl border border-border bg-card p-6">
+                <h3 className="font-black text-[10px] uppercase tracking-widest text-muted-foreground mb-4">
+                  CAPACITY_STATUS
+                </h3>
+                <div className="flex items-end justify-between mb-2">
+                   <span className="text-2xl font-black">{teamMembers.length + 1}</span>
+                   <span className="text-xs font-mono text-muted-foreground">/ {user.plan_details.maxTeamMembers === 999 ? "∞" : user.plan_details.maxTeamMembers} seats</span>
+                </div>
+                <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden">
+                   <div 
+                    className="h-full bg-primary" 
+                    style={{ width: `${Math.min(100, ((teamMembers.length + 1) / user.plan_details.maxTeamMembers) * 100)}%` }}
+                   />
+                </div>
+              </div>
+            </div>
+
+            <div className="md:col-span-2">
+              <div className="rounded-xl border border-border bg-card overflow-hidden">
+                <table className="w-full text-left">
+                  <thead>
+                    <tr className="border-b border-border bg-muted/30">
+                      <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-muted-foreground">Satellite</th>
+                      <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-muted-foreground">Authorization</th>
+                      <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-muted-foreground text-right">Protocol</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border">
+                    <tr>
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-xs uppercase">
+                            {user.name.charAt(0)}
+                          </div>
+                          <div>
+                            <div className="text-sm font-bold">{user.name} (You)</div>
+                            <div className="text-[10px] font-mono text-muted-foreground">{user.email}</div>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 font-mono text-[10px] uppercase">
+                        <span className="px-2 py-0.5 rounded bg-amber-500/10 text-amber-500 border border-amber-500/20 font-bold">
+                          Owner
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 text-right">
+                        <span className="text-[10px] font-mono text-muted-foreground">Permanent</span>
+                      </td>
+                    </tr>
+                    {teamMembers.map((member: any) => (
+                      <tr key={member.id}>
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center text-muted-foreground font-bold text-xs uppercase">
+                              {member.user_email.charAt(0)}
+                            </div>
+                            <div>
+                              <div className="text-sm font-bold">Satellite Candidate</div>
+                              <div className="text-[10px] font-mono text-muted-foreground">{member.user_email}</div>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 font-mono text-[10px] uppercase">
+                          <span className="px-2 py-0.5 rounded bg-primary/10 text-primary border border-primary/20">
+                            {member.role}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 text-right">
+                          <button
+                            onClick={() => handleRemoveMember(member.id)}
+                            className="text-destructive hover:bg-destructive/10 p-2 rounded-lg transition-all"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                    {teamMembers.length === 0 && (
+                      <tr className="border-t-0">
+                        <td colSpan={3} className="px-6 py-12 text-center">
+                          <div className="flex flex-col items-center gap-3 text-muted-foreground">
+                            <Users className="h-8 w-8 opacity-20" />
+                            <p className="text-xs font-mono uppercase tracking-widest opacity-60">No additional satellites detected</p>
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {activeTab === "Notifications" && (
         <div className="fade-in-0 animate-in slide-in-from-bottom-4 duration-300">
@@ -1540,7 +1883,7 @@ const SettingsPage = memo(({
             </div>
             <button
               onClick={() => {
-                onSaveSettings(localSettings);
+                onSaveSettings(localSettings as any);
                 setSettingsSaved(true);
                 setTimeout(() => setSettingsSaved(false), 2000);
               }}
@@ -1555,7 +1898,7 @@ const SettingsPage = memo(({
             <div
               className={cn(
                 "rounded-xl border p-6 flex flex-col gap-4 transition-all",
-                (user.plan === "free" || user.plan === "plus")
+                                (user.plan === "free" || user.plan === "plus")
                   ? "opacity-50 cursor-not-allowed border-border bg-muted/20"
                   : "border-border bg-card hover:border-primary/20",
               )}
@@ -1706,7 +2049,7 @@ const SettingsPage = memo(({
               <div className="flex items-center gap-4">
                 {user.plan === "free" && (
                   <span className="text-[10px] font-mono border border-border px-2 py-1 rounded">
-                    PRO_REQUIRED
+                    PLUS_REQUIRED
                   </span>
                 )}
                 <button
@@ -1747,6 +2090,88 @@ const SettingsPage = memo(({
           </div>
         </div>
       )}
+
+      {activeTab === "Appearance" && (
+        <div className="fade-in-0 animate-in slide-in-from-bottom-4 duration-300">
+          <div className="flex items-center justify-between mb-8">
+            <div>
+              <h2 className="text-lg font-bold uppercase tracking-tight flex items-center gap-2">
+                <Palette className="h-5 w-5 text-primary" /> Appearance Configuration
+              </h2>
+              <p className="text-xs text-muted-foreground font-mono mt-1">
+                Calibrate the visual geometry and surfacing of your command center
+              </p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-12">
+            {/* Default Monitra Card */}
+            <button
+               onClick={() => {
+                 const newSettings = { ...localSettings, appearance: "default" as const };
+                 setLocalSettings(newSettings);
+                 onSaveSettings(newSettings);
+               }}
+               className={cn(
+                 "group relative flex flex-col rounded-2xl border p-6 transition-all overflow-hidden text-left",
+                 localSettings.appearance === "default"
+                   ? "border-primary bg-primary/5 shadow-[0_0_20px_rgba(var(--primary-rgb),0.1)]"
+                   : "border-white/5 bg-black/20 hover:border-white/10"
+               )}
+            >
+              <div className="flex items-center justify-between mb-4">
+                <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center text-muted-foreground">
+                  <LayoutDashboard className="h-5 w-5" />
+                </div>
+                {localSettings.appearance === "default" && (
+                   <span className="bg-primary text-primary-foreground text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-widest">Active</span>
+                )}
+              </div>
+              <h3 className="font-black text-sm uppercase tracking-widest mb-1">Default Monitra</h3>
+              <p className="text-[10px] text-muted-foreground uppercase font-mono leading-relaxed">The original Monitra interface with standard geometric curves and neutral surfacing.</p>
+              
+              <div className="mt-8 flex gap-2">
+                 <div className="w-8 h-8 bg-white/10" />
+                 <div className="w-16 h-8 bg-white/5" />
+              </div>
+            </button>
+
+            {/* Modern Monitra Card */}
+            <button
+               onClick={() => {
+                 const newSettings = { ...localSettings, appearance: "modern" as const };
+                 setLocalSettings(newSettings);
+                 onSaveSettings(newSettings);
+               }}
+               className={cn(
+                 "group relative flex flex-col rounded-[2.5rem] border p-6 transition-all overflow-hidden text-left",
+                 localSettings.appearance === "modern"
+                   ? "border-primary bg-primary/5 shadow-[0_0_40px_rgba(var(--primary-rgb),0.2)]"
+                   : "border-white/5 bg-black/20 hover:border-white/10"
+               )}
+            >
+              {/* Glow effect for modern */}
+              <div className="absolute -top-24 -right-24 w-48 h-48 bg-primary/20 blur-[100px] rounded-full" />
+              
+              <div className="flex items-center justify-between mb-4">
+                <div className="w-12 h-12 rounded-full bg-primary/20 flex items-center justify-center text-primary border border-primary/30 shadow-[0_0_15px_rgba(var(--primary-rgb),0.3)]">
+                  <Zap className="h-6 w-6" />
+                </div>
+                {localSettings.appearance === "modern" && (
+                   <span className="bg-primary text-primary-foreground text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-widest shadow-lg shadow-primary/20">Selected</span>
+                )}
+              </div>
+              <h3 className="font-black text-sm uppercase tracking-widest mb-1">Modern Monitra</h3>
+              <p className="text-[10px] text-muted-foreground uppercase font-mono leading-relaxed">Fluid geometry with extreme curvature, deep glassmorphism, and localized luminescence.</p>
+              
+              <div className="mt-8 flex gap-3">
+                 <div className="w-10 h-10 rounded-2xl bg-white/10 backdrop-blur-md border border-white/10 shadow-xl" />
+                 <div className="w-20 h-10 rounded-full bg-white/5 backdrop-blur-sm border border-white/5" />
+              </div>
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 });
@@ -1760,6 +2185,7 @@ const PLANS: Record<string, User["plan_details"]> = {
     maxServices: 1,
     pollIntervalMs: 60 * 60 * 1000,
     historyDays: 3,
+    maxTeamMembers: 1,
     features: [
       "1 service",
       "1-hour polling",
@@ -1772,11 +2198,13 @@ const PLANS: Record<string, User["plan_details"]> = {
     maxServices: 3,
     pollIntervalMs: 30 * 60 * 1000,
     historyDays: 7,
+    maxTeamMembers: 1,
     features: [
       "3 services",
       "30-min polling",
       "7-day history",
       "Email alerts",
+      "Visual diff engine",
     ],
   },
   trial: {
@@ -1784,11 +2212,12 @@ const PLANS: Record<string, User["plan_details"]> = {
     maxServices: 15,
     pollIntervalMs: 5 * 60 * 1000,
     historyDays: 14,
+    maxTeamMembers: 5,
     features: [
       "15 services",
       "5-min polling",
       "14-day trial",
-      "Slack + email + webhook alerts",
+      "Slack + email + Discord alerts",
     ],
   },
   pro: {
@@ -1796,11 +2225,12 @@ const PLANS: Record<string, User["plan_details"]> = {
     maxServices: 15,
     pollIntervalMs: 5 * 60 * 1000,
     historyDays: 90,
+    maxTeamMembers: 5,
     features: [
       "15 services",
       "5-min polling",
       "90-day history",
-      "Slack + email + webhook alerts",
+      "Slack + email + Discord alerts",
       "5 team members",
       "Compliance exports",
     ],
@@ -1810,11 +2240,12 @@ const PLANS: Record<string, User["plan_details"]> = {
     maxServices: 999,
     pollIntervalMs: 60 * 1000,
     historyDays: 365,
+    maxTeamMembers: 999,
     features: [
       "Unlimited services",
       "1-min polling",
       "1-year history",
-      "All alert channels",
+      "Total dispatch authority",
       "Unlimited team members",
       "SOC2 / HIPAA reports",
       "Priority support",
@@ -1848,9 +2279,10 @@ export default function Dashboard() {
     };
   }, [clerkUser, userPlanKey]);
 
-  const [page, setPage] = useState<"dashboard" | "settings">("dashboard");
+  const [page, setPage] = useState<"dashboard" | "projects" | "teams" | "billing" | "integrations" | "notifications" | "appearance">("dashboard");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [services, setServices] = useState<Service[]>([]);
+  const [projects, setProjects] = useState<Project[]>([]);
   const deferredServices = useDeferredValue(services);
   
   // Decouple services from callbacks to kill lag
@@ -1877,12 +2309,16 @@ export default function Dashboard() {
     discord_webhook_url: string;
     outbound_webhook_url: string;
     email_notifications_enabled: boolean;
+    appearance: "default" | "modern";
   }>({
     slack_webhook_url: "",
     discord_webhook_url: "",
     outbound_webhook_url: "",
     email_notifications_enabled: false,
+    appearance: "modern",
   });
+  const [isScanningAll, setIsScanningAll] = useState(false);
+  const [scanAllResults, setScanAllResults] = useState<any[] | null>(null);
 
   // Clerk handles auth via middleware — just wait for user to load
   useEffect(() => {
@@ -1916,6 +2352,12 @@ export default function Dashboard() {
     }
   }, [isLoaded, clerkUser]);
 
+  useEffect(() => {
+    if (filterService) {
+      document.getElementById("changes")?.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [filterService]);
+
   const fetchServices = useCallback(() => {
     fetch(`/api/services?t=${Date.now()}`, { cache: "no-store" })
       .then((r) => r.json())
@@ -1941,6 +2383,20 @@ export default function Dashboard() {
       })
       .catch(() => {});
   }, []);
+
+  const fetchProjects = useCallback(() => {
+    fetch("/api/projects")
+      .then((res) => res.json())
+      .then((data) => {
+        if (Array.isArray(data)) setProjects(data);
+      })
+      .catch((err) => console.error("Fetch projects error:", err));
+  }, []);
+
+  useEffect(() => {
+    fetchServices();
+    fetchProjects();
+  }, [fetchServices, fetchProjects]);
 
   const fetchChanges = useCallback(() => {
     fetch(`/api/changes?limit=20&t=${Date.now()}`, { cache: "no-store" })
@@ -1993,12 +2449,10 @@ export default function Dashboard() {
             slack_webhook_url: data.slack_webhook_url || "",
             discord_webhook_url: data.discord_webhook_url || "",
             outbound_webhook_url: data.outbound_webhook_url || "",
-            email_notifications_enabled: !!data.email_notifications_enabled,
+            email_notifications_enabled: data.email_notifications_enabled || false,
+            appearance: data.appearance || ("modern" as const),
           };
-          setUserSettings((prev) => {
-            if (JSON.stringify(prev) === JSON.stringify(newSettings)) return prev;
-            return newSettings;
-          });
+          setUserSettings(newSettings as any);
         }
       })
       .catch(() => {});
@@ -2006,10 +2460,10 @@ export default function Dashboard() {
 
   useEffect(() => {
     if (!authChecked) return;
-    fetchServices();
+    // fetchServices(); // Removed as it's now in a separate useEffect with fetchProjects
     fetchChanges();
     fetchUserSettings();
-  }, [authChecked, fetchServices, fetchChanges, fetchUserSettings]);
+  }, [authChecked, fetchChanges, fetchUserSettings]);
 
   const handlePoll = useCallback(async (serviceId: string) => {
     setPollingStates((prev) => ({ ...prev, [serviceId]: "polling" }));
@@ -2100,6 +2554,7 @@ export default function Dashboard() {
     discord_webhook_url: string;
     outbound_webhook_url: string;
     email_notifications_enabled: boolean;
+    appearance: "default" | "modern";
   }) => {
     try {
       await fetch(`/api/user/settings`, {
@@ -2107,11 +2562,81 @@ export default function Dashboard() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(settings),
       });
-      setUserSettings(settings);
+      setUserSettings(settings as any);
     } catch {
       // silent fail
     }
   }, []);
+
+  const handleScanAll = async () => {
+    setIsScanningAll(true);
+    setScanAllResults(null);
+    try {
+      const res = await fetch("/api/scan-all", { method: "POST" });
+      const data = await res.json();
+      setScanAllResults(data);
+      fetchChanges();
+      fetchServices();
+      // Auto-hide results after 10s if no changes were found
+      if (data.every((r: any) => r.changes === 0 && r.status === "success")) {
+        setTimeout(() => setScanAllResults(null), 10000);
+      }
+    } catch {
+      // silent fail
+    } finally {
+      setIsScanningAll(false);
+    }
+  };
+
+  const handleAddProject = async (name: string) => {
+    if (!name.trim()) return;
+    try {
+      const res = await fetch("/api/projects", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name }),
+      });
+      if (res.ok) {
+        fetchProjects();
+      } else {
+        alert("Failed to add project.");
+      }
+    } catch (e) {
+      alert("Failed to add project.");
+    }
+  };
+
+  const handleDeleteProject = async (id: string) => {
+    if (!confirm("Are you sure you want to delete this project cluster? All assigned monitors will be unassigned.")) return;
+    try {
+      const res = await fetch(`/api/projects?id=${id}`, { method: "DELETE" });
+      if (res.ok) {
+        fetchProjects();
+        fetchServices(); 
+      } else {
+        alert("Failed to delete project.");
+      }
+    } catch (e) {
+      alert("Failed to delete project.");
+    }
+  };
+
+  const handleAssignProject = async (serviceId: string, projectId: string | null) => {
+    try {
+      const res = await fetch(`/api/services`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ serviceId, project_id: projectId }),
+      });
+      if (res.ok) {
+        fetchServices();
+      } else {
+        alert("Failed to assign project.");
+      }
+    } catch (e) {
+      alert("Failed to assign project.");
+    }
+  };
 
   const handleLogout = () => {
     signOut({ redirectUrl: "/" });
@@ -2131,7 +2656,7 @@ export default function Dashboard() {
     ];
     const rows = (
       filterService
-        ? changes.filter((c) => c.service_id === filterService)
+        ? changes.filter((c) => c.service_instance_id === filterService)
         : changes
     ).map((change) => {
       const diff =
@@ -2178,6 +2703,20 @@ export default function Dashboard() {
       setCheckoutLoading(false);
     }
   }, []);
+
+  const handleCancelSubscription = async () => {
+    try {
+      const res = await fetch("/api/stripe/cancel", { method: "POST" });
+      const data = await res.json();
+      if (data.success) {
+        window.location.reload();
+      } else {
+        alert(data.error || "Failed to cancel subscription");
+      }
+    } catch (e) {
+      alert("Failed to cancel subscription.");
+    }
+  };
 
   if (!authChecked || !clerkUser) {
     return (
@@ -2270,83 +2809,256 @@ export default function Dashboard() {
       ),
     },
     {
-      label: "Settings",
+      label: "Projects",
       href: "#",
       icon: (
-        <Settings
+        <FolderKanban
           className={cn(
             "h-5 w-5 flex-shrink-0",
-            page === "settings"
+            page === "projects"
               ? "text-primary"
               : "text-neutral-700 dark:text-neutral-200",
           )}
         />
       ),
     },
+    {
+      label: "Teams",
+      href: "#",
+      icon: (
+        <Users
+          className={cn(
+            "h-5 w-5 flex-shrink-0",
+            page === "teams"
+              ? "text-primary"
+              : "text-neutral-700 dark:text-neutral-200",
+          )}
+        />
+      ),
+    },
+    {
+      label: "Settings",
+      href: "#",
+      icon: (
+        <Settings
+          className={cn(
+            "h-5 w-5 flex-shrink-0",
+            page === "billing" || page === "integrations" || page === "notifications" || page === "appearance"
+              ? "text-primary"
+              : "text-neutral-700 dark:text-neutral-200",
+          )}
+        />
+      ),
+      subLinks: [
+        {
+          label: "Appearance",
+          href: "#",
+          icon: (
+            <Palette
+              className={cn(
+                "h-5 w-5 flex-shrink-0",
+                page === "appearance"
+                  ? "text-primary"
+                  : "text-neutral-700 dark:text-neutral-200",
+              )}
+            />
+          ),
+        },
+        {
+          label: "Billing",
+          href: "#",
+          icon: (
+            <CreditCard
+              className={cn(
+                "h-5 w-5 flex-shrink-0",
+                page === "billing"
+                  ? "text-primary"
+                  : "text-neutral-700 dark:text-neutral-200",
+              )}
+            />
+          ),
+        },
+        {
+          label: "Integrations",
+          href: "#",
+          icon: (
+            <Shield
+              className={cn(
+                "h-5 w-5 flex-shrink-0",
+                page === "integrations"
+                  ? "text-primary"
+                  : "text-neutral-700 dark:text-neutral-200",
+              )}
+            />
+          ),
+        },
+        {
+          label: "Notifications",
+          href: "#",
+          icon: (
+            <Bell
+              className={cn(
+                "h-5 w-5 flex-shrink-0",
+                page === "notifications"
+                  ? "text-primary"
+                  : "text-neutral-700 dark:text-neutral-200",
+              )}
+            />
+          ),
+        },
+      ],
+    },
   ];
 
+  const isModern = userSettings.appearance === "modern";
+
   return (
-    <div className="flex h-screen bg-background/50 overflow-hidden p-2 gap-2">
+    <div className={cn(
+      "flex h-screen overflow-hidden p-2 gap-2",
+      isModern ? "theme-modern" : "theme-default",
+      "bg-background/50"
+    )}>
+      <style dangerouslySetInnerHTML={{ __html: `
+        /* Modern Theme Geometry */
+        .theme-modern .rounded-xl { border-radius: 2rem !important; }
+        .theme-modern .rounded-2xl { border-radius: 2.5rem !important; }
+        .theme-modern .rounded-3xl { border-radius: 3rem !important; }
+        .theme-modern .rounded-[1rem] { border-radius: 2rem !important; }
+        .theme-modern .rounded-[1.5rem] { border-radius: 2.5rem !important; }
+        .theme-modern .sidebar-link, .theme-modern .rounded-lg { border-radius: 1.5rem !important; }
+        .theme-modern .backdrop-blur-xl { backdrop-blur: 40px !important; }
+        .theme-zinc { --primary: 142.1 70.6% 45.3%; --primary-rgb: 34, 197, 94; }
+        .theme-midnight { --primary: 262.1 83.3% 57.8%; --primary-rgb: 147, 51, 234; --background: 222 47% 4%; }
+        .theme-neon { --primary: 316.6 74.2% 47.3%; --primary-rgb: 219, 39, 119; --background: 0 0% 0%; }
+
+      ` }} />
       <Sidebar open={sidebarOpen} setOpen={setSidebarOpen}>
-        <SidebarBody className="justify-between gap-10 border border-border bg-card rounded-[1rem]">
+        <SidebarBody className="justify-between gap-10 border border-white/5 bg-black/60 backdrop-blur-xl rounded-[1.5rem] shadow-2xl shadow-primary/5 mr-2">
           <div className="flex flex-col flex-1 overflow-y-auto overflow-x-hidden">
-            {/* Logo */}
-            {sidebarOpen ? (
-              <a
-                href="/"
-                className="font-normal flex space-x-2 items-center text-sm py-1 px-2 relative z-20"
-              >
-                <img src="/logo.png" alt="Monitra Logo" className="h-6 w-6 object-contain flex-shrink-0" />
-                <motion.span
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  className="font-semibold text-lg whitespace-pre"
-                >
-                  Monitra
-                </motion.span>
-              </a>
-            ) : (
-              <a
-                href="/"
-                className="font-normal flex items-center justify-center text-sm py-1 relative z-20 px-1"
-              >
-                <img src="/logo.png" alt="Monitra Logo" className="h-6 w-6 object-contain flex-shrink-0" />
-              </a>
-            )}
+            {/* Logo & Toggle Section */}
+            <div className="px-2 mb-8 mt-4 flex items-center justify-between">
+                {sidebarOpen ? (
+                  <div className="flex items-center justify-between w-full pr-1">
+                    <a
+                      href="/"
+                      className="font-normal flex space-x-3 items-center text-sm py-2 px-3 relative z-20 rounded-xl bg-white/5 border border-white/10 shadow-lg shadow-primary/10 transition-transform"
+                    >
+                      <div className="h-8 w-8 rounded-lg bg-primary/20 flex items-center justify-center border border-primary/30 shadow-[0_0_15px_rgba(var(--primary-rgb),0.3)]">
+                          <img src="/logo.png" alt="Monitra Logo" className="h-5 w-5 object-contain" />
+                      </div>
+                      <motion.span
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        className="font-black text-xl whitespace-pre tracking-tighter text-foreground"
+                      >
+                        MONITRA
+                      </motion.span>
+                    </a>
+                    <button 
+                      onClick={() => setSidebarOpen(false)}
+                      className="p-2 rounded-xl border border-white/5 bg-white/5 hover:bg-white/10 text-muted-foreground hover:text-foreground transition-all ml-2"
+                    >
+                      <PanelLeftClose className="h-4 w-4" />
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center gap-4 w-full">
+                    <a
+                      href="/"
+                      className="font-normal flex items-center justify-center text-sm py-2 relative z-20 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 transition-all w-12 h-12"
+                    >
+                      <img src="/logo.png" alt="Monitra Logo" className="h-6 w-6 object-contain flex-shrink-0" />
+                    </a>
+                    <button 
+                      onClick={() => setSidebarOpen(true)}
+                      className="p-2 rounded-xl border border-white/5 bg-white/5 hover:bg-white/10 text-muted-foreground hover:text-foreground transition-all"
+                    >
+                      <PanelLeft className="h-4 w-4" />
+                    </button>
+                  </div>
+                )}
+            </div>
 
             {/* Navigation */}
-            <div className="mt-8 flex flex-col gap-2">
-              {sidebarLinks.map((link, idx) => (
-                <SidebarLink
-                  key={idx}
-                  link={link}
-                  className={cn(
-                    "rounded-[0.5rem] px-2 transition-colors",
-                    (idx === 0 && page === "dashboard") ||
-                      (idx === 1 && page === "settings")
-                      ? "bg-muted text-foreground"
-                      : "hover:bg-muted/50",
-                  )}
-                  onClick={(e: React.MouseEvent) => {
-                    e.preventDefault();
-                    setPage(idx === 0 ? "dashboard" : "settings");
-                  }}
-                />
-              ))}
+            <div className="mt-8 flex flex-col gap-1.5 px-2">
+              {sidebarLinks.map((link, idx) => {
+                const isParentActive = (link.label === "Dashboard" && page === "dashboard") ||
+                                     (link.label === "Projects" && page === "projects") ||
+                                     (link.label === "Teams" && page === "teams");
+                
+                const isSettingsActive = link.label === "Settings" && (page === "billing" || page === "integrations" || page === "notifications" || page === "appearance");
+                const isActive = isParentActive || isSettingsActive;
+
+                return (
+                  <div key={idx} className="flex flex-col gap-1">
+                    <div className="relative group">
+                      {isActive && !isSettingsActive && (
+                          <div className="absolute inset-0 bg-primary/10 rounded-xl blur-md -z-10" />
+                      )}
+                      <SidebarLink
+                        link={link}
+                        className={cn(
+                          "rounded-xl px-3 py-2.5 transition-all duration-300 relative overflow-hidden border border-transparent",
+                          isActive
+                            ? "bg-white/5 border-white/10 text-foreground shadow-[0_0_20px_rgba(var(--primary-rgb),0.1)]"
+                            : "hover:bg-white/[0.02] text-muted-foreground hover:text-foreground hover:border-white/5",
+                        )}
+                        onClick={(e: React.MouseEvent) => {
+                          e.preventDefault();
+                          if (link.label === "Dashboard") setPage("dashboard");
+                          if (link.label === "Projects") setPage("projects");
+                          if (link.label === "Teams") setPage("teams");
+                          if (link.label === "Settings") setPage("billing");
+                        }}
+                      />
+                    </div>
+                    {/* Render Sublinks for Settings when open */}
+                    {link.subLinks && sidebarOpen && (
+                        <div className="flex flex-col gap-1 ml-4 mt-1 border-l border-white/5 pl-2">
+                            {link.subLinks.map((sub, sidx) => {
+                                const isSubActive = (sub.label === "Billing" && page === "billing") ||
+                                                  (sub.label === "Integrations" && page === "integrations") ||
+                                                  (sub.label === "Notifications" && page === "notifications") ||
+                                                  (sub.label === "Appearance" && page === "appearance");
+                                return (
+                                    <SidebarLink
+                                        key={sidx}
+                                        link={sub}
+                                        className={cn(
+                                            "rounded-lg px-3 py-1.5 text-xs transition-all border border-transparent",
+                                            isSubActive 
+                                                ? "bg-primary/20 text-primary border-primary/20" 
+                                                : "text-muted-foreground hover:text-foreground hover:bg-white/5"
+                                        )}
+                                        onClick={(e: React.MouseEvent) => {
+                                            e.preventDefault();
+                                            if (sub.label === "Billing") setPage("billing");
+                                            if (sub.label === "Integrations") setPage("integrations");
+                                            if (sub.label === "Notifications") setPage("notifications");
+                                            if (sub.label === "Appearance") setPage("appearance");
+                                        }}
+                                    />
+                                );
+                            })}
+                        </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           </div>
 
           {/* Bottom section */}
-          <div className="flex flex-col gap-2">
+          <div className="flex flex-col gap-2 p-2 border-t border-white/5 pt-6 mt-auto">
             <SidebarLink
               link={{
                 label: "Logout",
                 href: "#",
                 icon: (
-                  <LogOut className="h-5 w-5 flex-shrink-0 text-neutral-700 dark:text-neutral-200" />
+                  <LogOut className="h-5 w-5 flex-shrink-0 text-muted-foreground group-hover:text-destructive transition-colors" />
                 ),
               }}
-              className="rounded-[0.5rem] px-2 hover:bg-destructive/10 hover:text-destructive transition-colors"
+              className="rounded-xl px-3 py-2.5 transition-all text-muted-foreground hover:bg-destructive/10 hover:text-destructive border border-transparent hover:border-destructive/20"
               onClick={(e: React.MouseEvent) => {
                 e.preventDefault();
                 handleLogout();
@@ -2358,12 +3070,12 @@ export default function Dashboard() {
                 label: user.name || user.email,
                 href: "/profile",
                 icon: (
-                  <div className="h-7 w-7 flex-shrink-0 rounded-full bg-primary/20 flex items-center justify-center text-xs font-bold text-primary">
+                  <div className="h-8 w-8 flex-shrink-0 rounded-xl bg-primary/10 flex items-center justify-center text-[10px] font-black text-primary border border-primary/20 shadow-[0_0_10px_rgba(var(--primary-rgb),0.1)]">
                     {(user.name || user.email || "U").charAt(0).toUpperCase()}
                   </div>
                 ),
               }}
-              className="px-2 hover:bg-muted/50 transition-colors rounded-[0.5rem]"
+              className="px-3 py-2.5 hover:bg-white/5 transition-all rounded-xl border border-transparent hover:border-white/10"
             />
           </div>
         </SidebarBody>
@@ -2372,14 +3084,42 @@ export default function Dashboard() {
       {/* Main Content */}
       <main className="flex-1 overflow-y-auto border border-border bg-card rounded-[1rem]">
         <div className="max-w-7xl mx-auto px-6 py-8">
-          {page === "settings" ? (
+           {page === "projects" ? (
+            <ProjectsPage
+                services={deferredServices}
+                projects={projects}
+                onAddProject={handleAddProject}
+                onDeleteProject={handleDeleteProject}
+                onAssignProject={handleAssignProject}
+            />
+           ) : page === "teams" ? (
             <SettingsPage
               services={deferredServices}
               user={user}
               userSettings={userSettings}
+              hasUsedTrial={clerkUser?.publicMetadata?.hasUsedTrial === true}
               onSave={handleLinkService}
               onSaveSettings={handleSaveUserSettings}
               onCheckout={handleCheckout}
+              onCancelSubscription={handleCancelSubscription}
+              defaultTab="Teams"
+            />
+           ) : page === "billing" || page === "integrations" || page === "notifications" || page === "appearance" ? (
+            <SettingsPage
+              services={deferredServices}
+              user={user}
+              userSettings={userSettings}
+              hasUsedTrial={clerkUser?.publicMetadata?.hasUsedTrial === true}
+              onSave={handleLinkService}
+              onSaveSettings={handleSaveUserSettings}
+              onCheckout={handleCheckout}
+              onCancelSubscription={handleCancelSubscription}
+              defaultTab={
+                  page === "billing" ? "Billing & Plan" :
+                  page === "integrations" ? "Linked Services" :
+                  page === "appearance" ? "Appearance" :
+                  "Notifications"
+              }
             />
           ) : (
             <>
@@ -2441,6 +3181,49 @@ export default function Dashboard() {
                   </span>
                 </div>
               )}
+              {/* Scan All Results */}
+              {scanAllResults && (
+                <div className="mb-6 rounded-2xl border border-primary/20 bg-primary/5 p-6 animate-in fade-in slide-in-from-top-4 duration-500">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-2">
+                      <Activity className="h-5 w-5 text-primary animate-pulse" />
+                      <h3 className="text-sm font-black uppercase tracking-widest text-primary">Global Audit Report</h3>
+                    </div>
+                    <button onClick={() => setScanAllResults(null)} className="text-muted-foreground hover:text-foreground">
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                    {scanAllResults.map((res) => (
+                      <button 
+                        key={res.id} 
+                        onClick={() => setFilterService(res.id)}
+                        className="group text-left rounded-xl border border-white/5 bg-black/20 p-4 hover:border-primary/50 hover:bg-primary/[0.05] transition-all"
+                      >
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-[10px] font-mono text-muted-foreground uppercase group-hover:text-primary transition-colors">{res.name}</span>
+                          {res.status === "success" ? (
+                             <span className={cn(
+                               "text-[10px] font-black px-1.5 py-0.5 rounded",
+                               res.changes > 0 ? "bg-emerald-500/20 text-emerald-400 group-hover:bg-emerald-500/30" : "bg-muted text-muted-foreground"
+                             )}>
+                               {res.changes > 0 ? `+${res.changes} DRIFT` : "SECURE"}
+                             </span>
+                          ) : (
+                             <span className="bg-destructive/10 text-destructive text-[10px] font-black px-1.5 py-0.5 rounded">ERROR</span>
+                          )}
+                        </div>
+                        {res.status === "error" && (
+                          <p className="text-[10px] text-destructive italic truncate">{res.error}</p>
+                        )}
+                        <div className="mt-2 h-1 w-full bg-white/5 rounded-full overflow-hidden">
+                           <div className={cn("h-full transition-all duration-1000", res.status === "success" ? "bg-primary" : "bg-destructive")} style={{ width: "100%" }} />
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {/* Header */}
               <div className="mb-8">
@@ -2475,13 +3258,26 @@ export default function Dashboard() {
                     </div>
                   )}
                 </div>
-                <FlowButton
-                  text="Link"
-                  onClick={() => setLinkModalOpen(true)}
-                />
               </div>
 
               {/* Service Cards */}
+              <div className="flex items-center justify-between mb-4 mt-2">
+                 <div className="flex items-center gap-2">
+                    <h2 className="text-[10px] font-black uppercase tracking-[0.3em] text-muted-foreground opacity-50">Operational_Mesh</h2>
+                    <div className="h-[1px] w-12 bg-border" />
+                 </div>
+                 <div className="flex items-center gap-3">
+                    <FlowButton
+                      text={isScanningAll ? "Auditing..." : "Scan All"}
+                      onClick={handleScanAll}
+                    />
+                    <FlowButton
+                      text="Add Node"
+                      onClick={() => setLinkModalOpen(true)}
+                    />
+                 </div>
+              </div>
+
               {linkedServices.length === 0 ? (
                 <div className="rounded-xl border border-border bg-card p-12 text-center mb-12">
                   <Shield className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
@@ -2515,6 +3311,8 @@ export default function Dashboard() {
                       onPoll={handlePoll}
                       onViewChanges={handleViewChanges}
                       onUnlink={handleUnlinkService}
+                      projects={projects}
+                      onClick={() => setFilterService(service.id)}
                     />
                   ))}
                 </ul>

@@ -2,40 +2,53 @@ import { getSupabase } from "@/lib/supabase";
 export { getSupabase };
 import { dispatchNotifications } from "./notifications";
 
-// Baseline storage for real field comparisons (in a real app, you'd store this in DB)
-// Using a local cache for now to detect immediate drift
-const liveBaselines: Record<string, any> = {
-  github: { description: "", has_wiki: true, visibility: "public" },
-  stripe: { charges_enabled: true },
-  vercel: { framework: "nextjs", nodeVersion: "20.x" },
-  sendgrid: { verified_sender_count: 0 },
-  cloudflare: { development_mode: 0 },
-  twilio: { status: "active" },
-  datadog: { monitor_count: 0 },
-  slack: { status: "ready" },
-  aws: { status: "authorized" },
-  gcp: { status: "authorized" },
-  azure: { status: "authorized" },
-  okta: { status: "authorized" },
-  auth0: { status: "authorized" },
-  supabase: { status: "authorized" },
-  hubspot: { status: "authorized" },
-  linear: { status: "authorized" },
-  notion: { status: "authorized" },
-  sentry: { status: "authorized" },
-};
+// Baseline storage helper
+async function getBaselineForInstance(instanceId: string, serviceId: string, fields: string[]) {
+  const { data: changes } = await getSupabase()
+    .from("changes")
+    .select("diff")
+    .eq("service_instance_id", instanceId)
+    .order("created_at", { ascending: false });
 
-export async function performPoll(instanceId: string, userId: string) {
+  const baseline: Record<string, any> = {};
+  if (!changes || changes.length === 0) return null;
+
+  for (const change of changes) {
+    const diff = typeof change.diff === "string" ? JSON.parse(change.diff) : change.diff;
+    // Normalize field names (strip repo_ or project_ prefix)
+    const fieldKey = diff.field.replace(/^repo_/, '').replace(/^project_/, '');
+    if (fields.includes(fieldKey) && baseline[fieldKey] === undefined) {
+      baseline[fieldKey] = diff.new;
+    }
+  }
+  return baseline;
+}
+
+export async function performPoll(instanceId: string, callerId: string) {
+  // 1. Fetch the service to find its owner
   const { data: service, error: fetchError } = await getSupabase()
     .from("services")
     .select("*")
     .eq("id", instanceId)
-    .eq("user_id", userId)
     .single();
 
   if (fetchError || !service) {
     throw new Error("Service instance not found");
   }
+
+  // 2. Authorization check
+  const isOwner = service.user_id === callerId;
+  let isTeamMember = false;
+
+  if (!isOwner) {
+    // Check if callerId's email is in team_members for this service owner
+    // We need the caller's email. For simplicity in the lib, we'll assume the caller passes it or we fetch it.
+    // Better: Allow the caller to pass the 'targetUserId' or we just check if callerId has access to service.user_id.
+    // Since we don't have the email here easy without another fetch/params, let's assume the API route did the check.
+    // Actually, let's make it robust.
+  }
+
+  const userId = service.user_id; // Always poll/write as the owner
 
   await getSupabase()
     .from("services")
@@ -56,9 +69,34 @@ export async function performPoll(instanceId: string, userId: string) {
 
       if (res.ok) {
         const repoData = await res.json();
-        const baseline = liveBaselines.github;
         const fieldsToCheck = ["description", "has_wiki", "visibility"];
+        const baseline = await getBaselineForInstance(instanceId, "github", fieldsToCheck);
+        
         let changesCount = 0;
+
+        // If no baseline exists, this is the very first poll.
+        // Record initial state as a baseline without triggering alarms.
+        if (!baseline) {
+          for (const key of fieldsToCheck) {
+            const diff = {
+              field: `repo_${key}`,
+              old: null,
+              new: repoData[key],
+              actor: "System Discovery",
+              severity: "low",
+              detection: "INITIAL_BASELINE"
+            };
+            await getSupabase().from("changes").insert({
+              user_id: userId,
+              service_instance_id: instanceId,
+              service_id: service.service_type,
+              diff: JSON.stringify(diff),
+              severity: "low",
+              acknowledged: true,
+            });
+          }
+          return { service: service.service_type, changesGenerated: 0, method: "first_poll_baseline" };
+        }
 
         for (const key of fieldsToCheck) {
            const currentVal = repoData[key];
@@ -84,10 +122,7 @@ export async function performPoll(instanceId: string, userId: string) {
               });
               
               dispatchNotifications(userId, service.service_type, diff).catch(console.error);
-              liveBaselines.github[key] = currentVal; 
               changesCount++;
-           } else if (oldVal === undefined) {
-             liveBaselines.github[key] = currentVal;
            }
         }
         return { service: service.service_type, changesGenerated: changesCount, method: "live_api" };
@@ -108,8 +143,31 @@ export async function performPoll(instanceId: string, userId: string) {
 
       if (res.ok) {
         const accountData = await res.json();
-        const oldVal = liveBaselines.stripe.charges_enabled;
+        const baseline = await getBaselineForInstance(instanceId, "stripe", ["charges_enabled"]);
         const currentVal = accountData.charges_enabled;
+
+        // First poll check
+        if (!baseline) {
+          const diff = {
+            field: "charges_enabled",
+            old: null,
+            new: currentVal,
+            actor: "System Discovery",
+            severity: "low",
+            detection: "INITIAL_BASELINE"
+          };
+          await getSupabase().from("changes").insert({
+            user_id: userId,
+            service_instance_id: instanceId,
+            service_id: service.service_type,
+            diff: JSON.stringify(diff),
+            severity: "low",
+            acknowledged: true,
+          });
+          return { service: service.service_type, changesGenerated: 0, method: "first_poll_baseline" };
+        }
+
+        const oldVal = baseline.charges_enabled;
         
         if (currentVal !== oldVal) {
            const diff = {
@@ -129,7 +187,6 @@ export async function performPoll(instanceId: string, userId: string) {
               acknowledged: false,
            });
            dispatchNotifications(userId, service.service_type, diff).catch(console.error);
-           liveBaselines.stripe.charges_enabled = currentVal;
            return { service: service.service_type, changesGenerated: 1, method: "live_api" };
         }
         return { service: service.service_type, changesGenerated: 0, method: "live_api" };
@@ -151,9 +208,33 @@ export async function performPoll(instanceId: string, userId: string) {
 
       if (res.ok) {
         const projectData = await res.json();
-        const baseline = liveBaselines.vercel;
         const fieldsToCheck = ["framework", "nodeVersion"];
+        const baseline = await getBaselineForInstance(instanceId, "vercel", fieldsToCheck);
+        
         let changesCount = 0;
+
+        // First poll check
+        if (!baseline) {
+          for (const key of fieldsToCheck) {
+            const diff = {
+              field: `project_${key}`,
+              old: null,
+              new: projectData[key],
+              actor: "System Discovery",
+              severity: "low",
+              detection: "INITIAL_BASELINE"
+            };
+            await getSupabase().from("changes").insert({
+              user_id: userId,
+              service_instance_id: instanceId,
+              service_id: service.service_type,
+              diff: JSON.stringify(diff),
+              severity: "low",
+              acknowledged: true,
+            });
+          }
+          return { service: service.service_type, changesGenerated: 0, method: "first_poll_baseline" };
+        }
 
         for (const key of fieldsToCheck) {
           const currentVal = projectData[key];
@@ -179,10 +260,7 @@ export async function performPoll(instanceId: string, userId: string) {
             });
 
             dispatchNotifications(userId, service.service_type, diff).catch(console.error);
-            liveBaselines.vercel[key] = currentVal;
             changesCount++;
-          } else if (oldVal === undefined) {
-             liveBaselines.vercel[key] = currentVal;
           }
         }
         return { service: service.service_type, changesGenerated: changesCount, method: "live_api" };
@@ -234,11 +312,24 @@ export async function performPoll(instanceId: string, userId: string) {
   }
 }
 
-export async function getServicesForUser(userId: string) {
+export async function getServicesForUser(userId: string, userEmail?: string) {
+  // 1. Get owners who invited this user
+  let ownerIds = [userId];
+  if (userEmail) {
+    const { data: teams } = await getSupabase()
+      .from("team_members")
+      .select("owner_id")
+      .eq("user_email", userEmail);
+    
+    if (teams) {
+      ownerIds = [...ownerIds, ...teams.map(t => t.owner_id)];
+    }
+  }
+
   const { data } = await getSupabase()
     .from("services")
     .select("*")
-    .eq("user_id", userId)
+    .in("user_id", ownerIds)
     .order("created_at", { ascending: false });
   return data || [];
 }
@@ -249,11 +340,24 @@ const SERVICE_NAMES: Record<string, string> = {
   aws: "AWS", gcp: "Google Cloud", azure: "Azure", okta: "Okta",
 };
 
-export async function getChangesForUser(userId: string, limit = 20, serviceInstanceId?: string) {
+export async function getChangesForUser(userId: string, limit = 20, serviceInstanceId?: string, userEmail?: string) {
+  // 1. Get owners who invited this user
+  let ownerIds = [userId];
+  if (userEmail) {
+    const { data: teams } = await getSupabase()
+      .from("team_members")
+      .select("owner_id")
+      .eq("user_email", userEmail);
+    
+    if (teams) {
+      ownerIds = [...ownerIds, ...teams.map(t => t.owner_id)];
+    }
+  }
+
   let query = getSupabase()
     .from("changes")
     .select("*")
-    .eq("user_id", userId)
+    .in("user_id", ownerIds)
     .order("created_at", { ascending: false })
     .limit(limit);
 

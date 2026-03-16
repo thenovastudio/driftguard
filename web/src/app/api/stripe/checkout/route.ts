@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { auth } from "@clerk/nextjs/server";
+import { auth, currentUser } from "@clerk/nextjs/server";
 import Stripe from "stripe";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "sk_test_dummy", {
@@ -11,40 +11,51 @@ export const dynamic = "force-dynamic";
 export async function POST(req: Request) {
   try {
     const { userId } = await auth();
-    if (!userId) {
+    const user = await currentUser();
+    if (!userId || !user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const body = await req.json();
-    const priceId = body.priceId || process.env.NEXT_PUBLIC_STRIPE_PRO_PRICE_ID; 
+    const priceId = body.priceId; 
+
+    if (!priceId) {
+      return NextResponse.json({ error: "Missing price API ID" }, { status: 400 });
+    }
+
+    // Trial restriction logic
+    const isPlus = priceId === process.env.NEXT_PUBLIC_STRIPE_PLUS_PRICE_ID;
+    const hasUsedTrial = user.publicMetadata?.hasUsedTrial === true;
+    const shouldIncludeTrial = !isPlus && !hasUsedTrial;
 
     if (!process.env.STRIPE_SECRET_KEY) {
-      // Simulate success if no stripe key is set yet (to avoid crashing before setup)
       return NextResponse.json({ 
         url: "/dashboard?simulated_checkout=true",
         simulated: true
       });
     }
 
-    if (!priceId) {
-      return NextResponse.json({ error: "Missing price API ID" }, { status: 400 });
-    }
-
     const host = req.headers.get("host");
     const protocol = host?.includes("localhost") ? "http" : "https";
     const origin = `${protocol}://${host}`;
 
-    const session = await stripe.checkout.sessions.create({
+    const sessionOptions: Stripe.Checkout.SessionCreateParams = {
       mode: "subscription",
       payment_method_types: ["card"],
       line_items: [{ price: priceId, quantity: 1 }],
       success_url: `${origin}/dashboard?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${origin}/dashboard`,
       client_reference_id: userId,
-      subscription_data: {
+    };
+
+    if (shouldIncludeTrial) {
+      sessionOptions.subscription_data = {
         trial_period_days: 14,
-      },
-    });
+      };
+      sessionOptions.metadata = { is_trial: "true" };
+    }
+
+    const session = await stripe.checkout.sessions.create(sessionOptions);
 
     return NextResponse.json({ url: session.url });
   } catch (error: any) {

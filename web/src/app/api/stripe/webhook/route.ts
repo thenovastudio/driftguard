@@ -53,11 +53,14 @@ export async function POST(req: Request) {
           console.error("Failed to fetch subscription for price ID, defaulting to plus:", e);
         }
 
+        const isTrial = session.metadata?.is_trial === "true";
+
         await client.users.updateUserMetadata(userId, {
           publicMetadata: {
             stripeSubscriptionId: subscriptionId,
-            stripeSubscriptionStatus: "trialing", 
-            stripePlanKey: planKey 
+            stripeSubscriptionStatus: isTrial ? "trialing" : "active", 
+            stripePlanKey: planKey,
+            ...(isTrial ? { hasUsedTrial: true } : {})
           }
         });
       }

@@ -122,8 +122,9 @@ const GlowingEffect = memo(
       <>
         {/* Static fallback border — visible when glow is off */}
         <div
+          style={{ borderRadius: "inherit" }}
           className={cn(
-            "pointer-events-none absolute -inset-px rounded-[inherit] border opacity-0 transition-opacity",
+            "pointer-events-none absolute -inset-px border opacity-0 transition-opacity",
             glow && "opacity-100",
             variant === "white" && "border-white",
             disabled && "!block"
@@ -134,6 +135,7 @@ const GlowingEffect = memo(
           ref={containerRef}
           style={
             {
+              borderRadius: "inherit",
               "--blur": `${blur}px`,
               "--spread": spread,
               "--start": "0",
@@ -162,7 +164,7 @@ const GlowingEffect = memo(
             } as React.CSSProperties
           }
           className={cn(
-            "pointer-events-none absolute -inset-px rounded-[inherit] opacity-0 transition-opacity duration-500",
+            "pointer-events-none absolute -inset-px opacity-0 transition-opacity duration-500",
             glow && "opacity-100",
             blur > 0 && "blur-[var(--blur)]",
             className,
@@ -170,9 +172,9 @@ const GlowingEffect = memo(
           )}
         >
           <div
+            style={{ borderRadius: "inherit" }}
             className={cn(
               "glow",
-              "rounded-[inherit]",
               'after:content-[""] after:rounded-[inherit] after:absolute after:inset-[calc(-1*var(--glowingeffect-border-width))]',
               "after:[border:var(--glowingeffect-border-width)_solid_transparent]",
               "after:[background:var(--gradient)] after:[background-attachment:fixed]",
